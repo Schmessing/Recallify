@@ -1,50 +1,75 @@
-# Welcome to your Expo app 👋
+# 📱 Recallify Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Welcome to the **Recallify Mobile App**, built with [Expo](https://expo.dev/) and React Native.
 
-## Get started
+This version is the **first demo** of Recallify — a single screen with the app name, subtitle, and a "Get Started" button.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 🚀 How to Run the App (Windows or Mac)
 
-2. Start the app
+### Step 1: Install Expo Go on your phone
+Download the free **Expo Go** app:
+- [Android on Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)
+- [iPhone on the App Store](https://apps.apple.com/app/expo-go/id982107779)
 
-   ```bash
-   npx expo start
-   ```
+This app lets you view Recallify instantly on your phone.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### Step 2: Get the project
+If you have Git installed, open **Command Prompt** or **PowerShell** and run:
 ```bash
-npm run reset-project
+git clone https://github.com/Schmessing/Recallify.git
+cd Recallify
 ```
+---
+### Step 3: Install everything needed
+In the same folder, run:
+```bash
+npm install
+```
+This installs all the dependencies needed to run Recallify.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
+### Step 4: Start the app
+Once that finishes, run:
+```bash
+npx expo start
+```
+You'll see a QR code appear in the Command Prompt or in your browser.
 
-## Learn more
+---
+### Step 5: Open Recallify on your phone
+* Open **Expo Go** on your phone
+* Tap **"Scan QR Code"**
+* Scan the QR code from your screen
+Within a few seconds, you'll see the Recallify app running on your phone!
+Works the same on Windows, Mac, iPhone, or Android.
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+### What You'll See
+* Dark background design
+* "Recallify" title
+* Subtitle: "Study smarter. One screen at a time."
+* A blue "Get Started" button
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Team Workflow (for editing and testing)
+**1. Make changes and push**
+```bash
+git add .
+git commit -m "Describe what you changed"
+git push
+```
+**2. Always pull before working**
+```bash
+git pull
+```
+This keeps everyone in sync.
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+### Tech Stack
+* React Native (via Expo)
+* JavaScript
+* Expo Router (navigation)
