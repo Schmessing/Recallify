@@ -1,12 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { baseStyles } from '../constants/homeStyles';
-import { useScale } from '../hooks/scale';
+import { Colors, FontSizes, LineHeights, Spacing } from '../constants/theme';
 import ModalScreen from './modal';
 
 export default function Home() {
-  const { scaleValue, isMobile } = useScale();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 450;
 
   const handleImport = () => alert('Starting import process...');
   const handleViewDatasets = () => alert('Opening your datasets...');
@@ -14,124 +14,43 @@ export default function Home() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={baseStyles.safe} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar style="light" />
 
-        {/* Top Bar */}
-        <View style={baseStyles.topBar}>
+        <View style={styles.topBar}>
           <ModalScreen />
         </View>
 
-        {/* Main Content */}
-        <View
-          style={[
-            baseStyles.container,
-            { flexDirection: isMobile ? 'column' : 'row' },
-          ]}
-        >
-          {/* Left: Import Section */}
-          <View
-            style={[
-              baseStyles.importSection,
-              {
-                padding: scaleValue(24),
-                marginRight: isMobile ? 0 : scaleValue(16),
-                marginBottom: isMobile ? scaleValue(16) : 0,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                baseStyles.title,
-                { fontSize: scaleValue(24), lineHeight: scaleValue(28) },
-              ]}
-            >
-              Import
-            </Text>
-
-            <Text
-              style={[
-                baseStyles.subtitle,
-                { fontSize: scaleValue(14), lineHeight: scaleValue(18) },
-              ]}
-            >
+        <View style={[styles.container, { flexDirection: isMobile ? 'column' : 'row' }]}>
+          {/* Import Section */}
+          <View style={[styles.importSection, { marginRight: isMobile ? 0 : Spacing.md, marginBottom: isMobile ? Spacing.md : 0 }]}>
+            <Text style={[styles.title, { fontSize: FontSizes.xlarge, lineHeight: LineHeights.large }]}>Import</Text>
+            <Text style={[styles.subtitle, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
               Upload your study materials here.
             </Text>
-
-            <TouchableOpacity
-              style={[
-                baseStyles.button,
-                {
-                  paddingVertical: scaleValue(14),
-                  paddingHorizontal: scaleValue(22),
-                },
-              ]}
-              onPress={handleImport}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  baseStyles.buttonText,
-                  { fontSize: scaleValue(16), lineHeight: scaleValue(20) },
-                ]}
-              >
+            <TouchableOpacity style={styles.button} onPress={handleImport}>
+              <Text style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}>
                 Import Data
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Right Column */}
-          <View style={baseStyles.rightColumn}>
-            {/* View Datasets */}
-            <TouchableOpacity
-              style={[baseStyles.viewSection, { padding: scaleValue(30) }]}
-              onPress={handleViewDatasets}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  baseStyles.title,
-                  { fontSize: scaleValue(20), lineHeight: scaleValue(24) },
-                ]}
-              >
-                View Datasets
-              </Text>
+          {/* Right Section */}
+          <View style={styles.rightColumn}>
+            <TouchableOpacity style={styles.viewSection} onPress={handleViewDatasets}>
+              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>View Datasets</Text>
               <ScrollView>
-                <Text
-                  style={[
-                    baseStyles.textBody,
-                    { fontSize: scaleValue(14), lineHeight: scaleValue(18) },
-                  ]}
-                >
-                  Tap to explore and manage your imported datasets. You can
-                  check summaries or delete old data.
+                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+                  Tap to explore and manage your imported datasets. You can check summaries or delete old data.
                 </Text>
               </ScrollView>
             </TouchableOpacity>
 
-            {/* View Generated Content */}
-            <TouchableOpacity
-              style={[baseStyles.viewSection, { padding: scaleValue(30) }]}
-              onPress={handleViewGenerated}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  baseStyles.title,
-                  { fontSize: scaleValue(20), lineHeight: scaleValue(24) },
-                ]}
-              >
-                View Generated Content
-              </Text>
+            <TouchableOpacity style={styles.viewSection} onPress={handleViewGenerated}>
+              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>View Generated Content</Text>
               <ScrollView>
-                <Text
-                  style={[
-                    baseStyles.textBody,
-                    { fontSize: scaleValue(14), lineHeight: scaleValue(18) },
-                  ]}
-                >
-                  Tap to view your AI-generated flashcards, quizzes, and study
-                  summaries.
+                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+                  Tap to view your AI-generated flashcards, quizzes, and study summaries.
                 </Text>
               </ScrollView>
             </TouchableOpacity>
@@ -141,3 +60,36 @@ export default function Home() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.dark.background },
+  container: { flex: 1, padding: Spacing.md },
+  topBar: { marginBottom: Spacing.md },
+  importSection: {
+    flex: 2,
+    backgroundColor: Colors.dark.card,
+    borderRadius: 24,
+    padding: Spacing.lg,
+    justifyContent: 'center',
+  },
+  rightColumn: { flex: 3, justifyContent: 'space-between' },
+  viewSection: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  title: { fontWeight: '700', color: '#F8FAFC', marginBottom: Spacing.sm },
+  subtitle: { color: '#CBD5E1', marginBottom: Spacing.md },
+  textBody: { color: '#94A3B8' },
+  button: {
+    backgroundColor: '#6366F1',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
+  buttonText: { color: '#FFFFFF', fontWeight: '700' },
+});

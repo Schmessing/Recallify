@@ -1,44 +1,40 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+import { Dimensions, Platform } from 'react-native';
 
-import { Platform } from 'react-native';
+const { width, height } = Dimensions.get('window');
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+// ✅ Base scaling factor
+export const scaleValue = (size: number) => {
+  const scale = Math.max(width / 1000, height / 700);
+  return size * scale;
+};
 
+// 🎨 Colors
 export const Colors = {
   light: {
     text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
+    background: '#FFFFFF',
+    tint: '#0a7ea4',
     icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    card: '#F8FAFC',
   },
   dark: {
     text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
+    background: '#0F172A',
+    tint: '#FFFFFF',
     icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    card: '#1E293B',
   },
 };
 
+// 🅰️ Fonts
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
-  default: {
+  android: {
     sans: 'normal',
     serif: 'serif',
     rounded: 'normal',
@@ -51,3 +47,27 @@ export const Fonts = Platform.select({
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
+
+// 📏 Global Spacing & Font Sizes (auto-scaled)
+export const Spacing = {
+  xs: scaleValue(4),
+  sm: scaleValue(8),
+  md: scaleValue(16),
+  lg: scaleValue(24),
+  xl: scaleValue(32),
+};
+
+export const FontSizes = {
+  small: scaleValue(12),
+  regular: scaleValue(14),
+  medium: scaleValue(16),
+  large: scaleValue(20),
+  xlarge: scaleValue(24),
+};
+
+export const LineHeights = {
+  small: scaleValue(16),
+  regular: scaleValue(20),
+  medium: scaleValue(24),
+  large: scaleValue(28),
+};
