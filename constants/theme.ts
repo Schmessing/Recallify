@@ -2,13 +2,11 @@ import { Dimensions, Platform } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
-// ✅ Base scaling factor
 export const scaleValue = (size: number) => {
   const scale = Math.max(width / 1000, height / 700);
   return size * scale;
 };
 
-// 🎨 Colors
 export const Colors = {
   light: {
     text: '#11181C',
@@ -26,7 +24,6 @@ export const Colors = {
   },
 };
 
-// 🅰️ Fonts
 export const Fonts = Platform.select({
   ios: {
     sans: 'system-ui',
@@ -48,7 +45,6 @@ export const Fonts = Platform.select({
   },
 });
 
-// 📏 Global Spacing & Font Sizes (auto-scaled)
 export const Spacing = {
   xs: scaleValue(4),
   sm: scaleValue(8),

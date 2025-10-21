@@ -1,3 +1,5 @@
+// app/index.tsx
+import { Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +10,6 @@ export default function Home() {
   const { width } = useWindowDimensions();
   const isMobile = width < 450;
 
-  const handleImport = () => alert('Starting import process...');
   const handleViewDatasets = () => alert('Opening your datasets...');
   const handleViewGenerated = () => alert('Opening your generated content...');
 
@@ -23,22 +24,36 @@ export default function Home() {
 
         <View style={[styles.container, { flexDirection: isMobile ? 'column' : 'row' }]}>
           {/* Import Section */}
-          <View style={[styles.importSection, { marginRight: isMobile ? 0 : Spacing.md, marginBottom: isMobile ? Spacing.md : 0 }]}>
-            <Text style={[styles.title, { fontSize: FontSizes.xlarge, lineHeight: LineHeights.large }]}>Import</Text>
+          <View
+            style={[
+              styles.importSection,
+              {
+                marginRight: isMobile ? 0 : Spacing.md,
+                marginBottom: isMobile ? Spacing.md : 0,
+              },
+            ]}
+          >
+            <Text style={[styles.title, { fontSize: FontSizes.xlarge, lineHeight: LineHeights.large }]}>
+              Import
+            </Text>
             <Text style={[styles.subtitle, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
               Upload your study materials here.
             </Text>
-            <TouchableOpacity style={styles.button} onPress={handleImport}>
+            <Link href="/import" asChild>
+            <TouchableOpacity style={styles.button}>
               <Text style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}>
                 Import Data
               </Text>
             </TouchableOpacity>
+            </Link>
           </View>
 
           {/* Right Section */}
           <View style={styles.rightColumn}>
             <TouchableOpacity style={styles.viewSection} onPress={handleViewDatasets}>
-              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>View Datasets</Text>
+              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
+                View Datasets
+              </Text>
               <ScrollView>
                 <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
                   Tap to explore and manage your imported datasets. You can check summaries or delete old data.
@@ -47,7 +62,9 @@ export default function Home() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.viewSection} onPress={handleViewGenerated}>
-              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>View Generated Content</Text>
+              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
+                View Generated Content
+              </Text>
               <ScrollView>
                 <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
                   Tap to view your AI-generated flashcards, quizzes, and study summaries.
