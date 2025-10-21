@@ -1,7 +1,15 @@
 // app/index.tsx
 import { Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions
+} from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontSizes, LineHeights, Spacing } from '../constants/theme';
 import ModalScreen from './modal';
@@ -12,6 +20,7 @@ export default function Home() {
 
   const handleViewDatasets = () => alert('Opening your datasets...');
   const handleViewGenerated = () => alert('Opening your generated content...');
+  const handleWebImport = () => alert('Import Unavailable on Web');
 
   return (
     <SafeAreaProvider>
@@ -39,13 +48,27 @@ export default function Home() {
             <Text style={[styles.subtitle, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
               Upload your study materials here.
             </Text>
-            <Link href="/import" asChild>
-            <TouchableOpacity style={styles.button}>
-              <Text style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}>
-                Import Data
-              </Text>
-            </TouchableOpacity>
-            </Link>
+
+            {/* ✅ Use Platform.OS to decide which button to show */}
+            {Platform.OS === 'web' ? (
+              <TouchableOpacity style={styles.button} onPress={handleWebImport}>
+                <Text
+                  style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
+                >
+                  Import Unavailable on Web
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Link href="/import" asChild>
+                <TouchableOpacity style={styles.button}>
+                  <Text
+                    style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
+                  >
+                    Import Data
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            )}
           </View>
 
           {/* Right Section */}
