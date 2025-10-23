@@ -22,18 +22,18 @@ export default function App() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#fdf9f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
     width: '88%',
-    backgroundColor: '#111827',
+    backgroundColor: '#fff',
     borderRadius: 24,
     paddingVertical: 40,
     paddingHorizontal: 24,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#fff',
     shadowOpacity: 0.25,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 10 },
@@ -46,18 +46,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#000',
     letterSpacing: 0.5,
   },
   subtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: '#CBD5E1',
+    color: '#000',
     textAlign: 'center',
   },
   button: {
     marginTop: 24,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#8fded0',
     paddingVertical: 14,
     paddingHorizontal: 22,
     borderRadius: 14,
@@ -65,13 +65,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: '#000',
     fontSize: 16,
     fontWeight: '700',
   },
   version: {
     marginTop: 18,
-    color: '#64748B',
+    color: '#7ab7d3',
     fontSize: 12,
   },
 });

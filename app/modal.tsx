@@ -6,7 +6,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 export default function TopBar() {
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={{ color: '#F8FAFC' }}>Recallify</ThemedText>
+      <ThemedText type="title" style={{ color: '#000' }}>Recallify</ThemedText>
 
       <View style={styles.rightSection}>
         <TouchableOpacity
@@ -28,11 +28,11 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#111827',
+    backgroundColor: '#fdf9f0',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#fff',
     borderBottomWidth: 1,
   },
   rightSection: {
@@ -42,12 +42,12 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#8fded0',
     borderRadius: 14,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: '#000',
     fontWeight: '700',
     fontSize: 16,
   },

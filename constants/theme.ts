@@ -16,11 +16,11 @@ export const Colors = {
     card: '#F8FAFC',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#0F172A',
+    text: '#000',
+    background: '#fdf9f0',
     tint: '#FFFFFF',
     icon: '#9BA1A6',
-    card: '#1E293B',
+    card: '#fff',
   },
 };
 
