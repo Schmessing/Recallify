@@ -9,18 +9,18 @@ export const scaleValue = (size: number) => {
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#FFFFFF',
+    text: '#000',
+    background: '#fff9f0',
     tint: '#0a7ea4',
     icon: '#687076',
     card: '#F8FAFC',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#0F172A',
+    text: '#000',
+    background: '#fff9f0',
     tint: '#FFFFFF',
     icon: '#9BA1A6',
-    card: '#1E293B',
+    card: '#fff',
   },
 };
 
