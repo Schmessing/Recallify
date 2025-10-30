@@ -22,13 +22,13 @@ export default function App() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
     width: '88%',
-    backgroundColor: '#111827',
+    backgroundColor: '#fff',
     borderRadius: 24,
     paddingVertical: 40,
     paddingHorizontal: 24,
@@ -52,12 +52,12 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: '#CBD5E1',
+    color: '#000',
     textAlign: 'center',
   },
   button: {
     marginTop: 24,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#a4f6ee',
     paddingVertical: 14,
     paddingHorizontal: 22,
     borderRadius: 14,

@@ -1,34 +1,100 @@
 // app/index.tsx
-import { router } from 'expo-router';
+import { Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
 import {
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  useWindowDimensions
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontSizes, LineHeights, Spacing } from '../constants/theme';
+import ModalScreen from './modal';
 
-export default function Landing() {
+export default function Home() {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 450;
+
+  const handleViewDatasets = () => alert('Opening your datasets...');
+  const handleViewGenerated = () => alert('Opening your generated content...');
+  const handleWebImport = () => alert('Import Unavailable on Web');
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <StatusBar style="light" />
-        <View style={styles.card}>
-          <Text style={styles.title}>Recallify</Text>
-          <Text style={styles.subtitle}>Study smarter. One screen at a time.</Text>
 
-          <TouchableOpacity
-            style={styles.button}
-            activeOpacity={0.85}
-            onPress={() => router.push('/home')}
+        <View style={styles.topBar}>
+          <ModalScreen />
+        </View>
+
+        <View style={[styles.container, { flexDirection: isMobile ? 'column' : 'row' }]}>
+          {/* Import Section */}
+          <View
+            style={[
+              styles.importSection,
+              {
+                marginRight: isMobile ? 0 : Spacing.md,
+                marginBottom: isMobile ? Spacing.md : 0,
+              },
+            ]}
           >
-            <Text style={styles.buttonText}>Get Started</Text>
-          </TouchableOpacity>
+            <Text style={[styles.title, { fontSize: FontSizes.xlarge, lineHeight: LineHeights.large }]}>
+              Import
+            </Text>
+            <Text style={[styles.subtitle, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+              Upload your study materials here.
+            </Text>
 
-          <Text style={styles.version}>v0.1.0</Text>
+            {/* ✅ Use Platform.OS to decide which button to show */}
+            {Platform.OS === 'web' ? (
+              <TouchableOpacity style={styles.button} onPress={handleWebImport}>
+                <Text
+                  style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
+                >
+                  Import Unavailable on Web
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Link href="/import" asChild>
+                <TouchableOpacity style={styles.button}>
+                  <Text
+                    style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
+                  >
+                    Import Data
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            )}
+          </View>
+
+          {/* Right Section */}
+          <View style={styles.rightColumn}>
+            <TouchableOpacity style={styles.viewSection} onPress={handleViewDatasets}>
+              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
+                View Datasets
+              </Text>
+              <ScrollView>
+                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+                  Tap to explore and manage your imported datasets. You can check summaries or delete old data.
+                </Text>
+              </ScrollView>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.viewSection} onPress={handleViewGenerated}>
+              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
+                View Generated Content
+              </Text>
+              <ScrollView>
+                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+                  Tap to view your AI-generated flashcards, quizzes, and study summaries.
+                </Text>
+              </ScrollView>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -36,32 +102,34 @@ export default function Landing() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.dark.background, alignItems: 'center', justifyContent: 'center' },
-  card: {
-    width: '88%',
+  safe: { flex: 1, backgroundColor: Colors.dark.background },
+  container: { flex: 1, padding: Spacing.md },
+  topBar: { marginBottom: Spacing.md },
+  importSection: {
+    flex: 2,
     backgroundColor: Colors.dark.card,
     borderRadius: 24,
-    paddingVertical: 40,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    shadowOpacity: 0.25,
-    shadowColor: '#000',
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
+    padding: Spacing.lg,
+    justifyContent: 'center',
   },
-  title: { fontSize: FontSizes.xlarge, lineHeight: LineHeights.large, fontWeight: '800', color: '#F8FAFC', textAlign: 'center' },
-  subtitle: { marginTop: Spacing.sm, fontSize: FontSizes.regular, lineHeight: LineHeights.medium, color: '#CBD5E1', textAlign: 'center' },
+  rightColumn: { flex: 3, justifyContent: 'space-between' },
+  viewSection: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  title: { fontWeight: '700', color: '#000', marginBottom: Spacing.sm },
+  subtitle: { color: '#000', marginBottom: Spacing.md },
+  textBody: { color: '#000' },
   button: {
-    marginTop: Spacing.lg,
-    width: '100%',
+    backgroundColor: '#8fded0',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: 14,
     alignItems: 'center',
-    backgroundColor: '#6366F1',
+    marginTop: Spacing.md,
   },
-  buttonText: { color: '#FFFFFF', fontWeight: '700' },
-  version: { marginTop: Spacing.md, color: '#64748B', fontSize: 12 },
+  buttonText: { color: '#000', fontWeight: '700' },
 });
-
