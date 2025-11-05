@@ -84,16 +84,27 @@ export default function Home() {
               </ScrollView>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.viewSection} onPress={handleViewGenerated}>
-              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
-                View Generated Content
+            {/* View Generated Content */}
+            <View style={styles.viewSection}>
+            <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
+              View Generated Content
+            </Text>
+            <ScrollView>
+              <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+                Tap to view your AI-generated flashcards, quizzes, and study summaries.
               </Text>
-              <ScrollView>
-                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
-                  Tap to view your AI-generated flashcards, quizzes, and study summaries.
+            </ScrollView>
+
+            {/* 👇 New Flashcards Button */}
+            <Link href="/flashcards" asChild>
+              <TouchableOpacity style={[styles.button, { marginTop: Spacing.md, backgroundColor: '#00BFA6' }]}>
+                <Text style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}>
+                  View Flashcards
                 </Text>
-              </ScrollView>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </Link>
+          </View>
+
           </View>
         </View>
       </SafeAreaView>
