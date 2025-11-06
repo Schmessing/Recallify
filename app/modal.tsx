@@ -1,7 +1,8 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { router } from 'expo-router';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Link } from 'expo-router';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FontSizes, LineHeights } from '../constants/theme';
 
 export default function TopBar() {
   return (
@@ -9,15 +10,15 @@ export default function TopBar() {
       <ThemedText type="title" style={{ color: '#F8FAFC' }}>Recallify</ThemedText>
 
       <View style={styles.rightSection}>
-        <TouchableOpacity
-          onPress={() => router.push('/settings')}
-          style={styles.button}
-          activeOpacity={0.8}
-        >
-          <ThemedText type="link" style={styles.buttonText}>
-            Settings
-          </ThemedText>
-        </TouchableOpacity>
+        <Link href="/settings" asChild>
+          <TouchableOpacity style={styles.button}>
+            <Text
+              style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
+            >
+              Settings
+            </Text>
+          </TouchableOpacity>
+        </Link>
       </View>
     </ThemedView>
   );
