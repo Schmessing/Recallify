@@ -1,12 +1,9 @@
 // app/import.tsx
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
 import { SQLiteProvider, useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Button, Text, View } from 'react-native';
-
-// Replace this with your actual OCR.Space API key
-const OCR_API_KEY = "K84231978688957";
+import { useSettings } from './settingsProvider';
 
 export default function ImportScreen() {
   return (
@@ -18,122 +15,112 @@ export default function ImportScreen() {
 
 function ImportContent() {
   const db = useSQLiteContext();
+  const { apiUrls } = useSettings(); // URLs and keys from settings
   const [loading, setLoading] = useState(false);
 
- const handleImport = async () => {
-  try {
-    console.log('Starting import...');
-    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
-    console.log('Document picker raw result:', result);
+  const handleImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+      if ('canceled' in result && result.canceled) return;
 
-    if ('canceled' in result && result.canceled) {
-      console.log('User cancelled file pick');
-      Alert.alert('File selection cancelled');
-      return;
-    }
+      const pickedFile = ('assets' in result && result.assets?.[0]) || result;
+      const { uri, name, mimeType } = pickedFile;
+      if (!uri) {
+        Alert.alert('File selection failed');
+        return;
+      }
 
-    const pickedFile = ('assets' in result && result.assets?.[0]) || result;
-    const { uri, name, mimeType } = pickedFile;
+      setLoading(true);
+      let text = '';
 
-    if (!uri) {
-      console.log('No URI found in picked file:', pickedFile);
-      Alert.alert('File selection failed. No file path detected.');
-      return;
-    }
+      // -------------------- OCR --------------------
+      if (mimeType?.startsWith('image/')) {
+        const formData = new FormData();
+        formData.append("apikey", apiUrls.ocrKey); // use key from settings
+        formData.append("language", "eng");
+        formData.append("isOverlayRequired", "false");
+        formData.append("file", { uri, type: mimeType, name } as any);
 
-    console.log('File selected:', { uri, name, mimeType });
-    setLoading(true);
+        const ocrRes = await fetch(apiUrls.ocrUrl, {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "multipart/form-data" },
+          body: formData,
+        });
+        const ocrData = await ocrRes.json();
+        text = ocrData?.ParsedResults?.[0]?.ParsedText?.trim() || '';
 
-    let text = '';
+      // -------------------- Whisper --------------------
+      } else if (mimeType?.startsWith('audio/')) {
+        const formData = new FormData();
+        formData.append('audio', { uri, type: mimeType, name } as any);
+        formData.append('apikey', apiUrls.whisperKey); // key from settings
 
-    // -------------------- Pre-process file --------------------
-    if (mimeType?.startsWith('image/')) {
-      // Image -> OCR.Space
-      const formData = new FormData();
-      formData.append("apikey", OCR_API_KEY);
-      formData.append("language", "eng");
-      formData.append("isOverlayRequired", "false");
-      formData.append("file", { uri, type: mimeType, name } as any);
+        const res = await fetch(apiUrls.whisperUrl, { method: 'POST', body: formData });
+        const data = await res.json();
+        text = data.text || '';
 
-      const ocrRes = await fetch("https://api.ocr.space/parse/image", {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "multipart/form-data" },
-        body: formData,
-      });
-      const ocrData = await ocrRes.json();
-      text = ocrData?.ParsedResults?.[0]?.ParsedText?.trim() || '';
-      console.log('OCR text extracted:', text.slice(0, 100));
+      // -------------------- Plain Text --------------------
+      } else if (mimeType === 'text/plain') {
+        const fileResponse = await fetch(uri);
+        const fileBlob = await fileResponse.blob();
+        text = await new File([fileBlob], name).text();
 
-    } else if (mimeType?.startsWith('audio/')) {
-      // Audio -> backend (Whisper)
-      const formData = new FormData();
-      formData.append('audio', { uri, type: mimeType, name });
-      const res = await fetch('whisper api address', {
+      } else {
+        Alert.alert('Unsupported file type');
+        setLoading(false);
+        return;
+      }
+
+      // -------------------- Gemini --------------------
+      const geminiRes = await fetch(apiUrls.geminiUrl, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiUrls.geminiKey}` // key from settings
+        },
+        body: JSON.stringify({
+          prompt: `Generate a question and answer for this content:\n${text}`,
+        }),
       });
-      const data = await res.json();
-      text = data.text || '';
-      console.log('Transcribed audio text:', text.slice(0, 100));
+      const geminiData = await geminiRes.json();
+      const generatedContent = geminiData.text || '';
 
-    } else if (mimeType === 'text/plain') {
-      // Plain text
-      text = await FileSystem.readAsStringAsync(uri);
-      console.log('Plain text content preview:', text.slice(0, 100));
+      // -------------------- Save to SQLite --------------------
+      const createdAt = new Date().toISOString();
+      const topicId = 1;
+      const stmt = await db.prepareAsync(
+        `INSERT INTO data (name, size, body, topic_id, created_at) VALUES ($name, $size, $body, $topicId, $createdAt)`
+      );
 
-    } else {
-      console.log('Unsupported file type:', mimeType);
-      Alert.alert('Unsupported file type');
+      let dataId = 0;
+      try {
+        const result = await stmt.executeAsync({
+          $name: name,
+          $size: text.length,
+          $body: text,
+          $topicId: topicId,
+          $createdAt: createdAt,
+        });
+        dataId = result.lastInsertRowId; // ✅ this works
+      } finally {
+        await stmt.finalizeAsync();
+      }
+
+      const questionText = generatedContent.split('\n')[0] || 'Generated question';
+      const answerText = generatedContent.split('\n')[1] || 'Generated answer';
+      await db.runAsync(
+        `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
+        dataId, questionText, answerText
+      );
+
+      Alert.alert('Import & API processing successful!');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error processing file', String(err));
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // -------------------- Gemini call --------------------
-    console.log('Sending text to Gemini API...');
-    const geminiRes = await fetch('gemini api address', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: `Generate a question and answer for this content:\n${text}`,
-      }),
-    });
-    const geminiData = await geminiRes.json();
-    const generatedContent = geminiData.text || '';
-    console.log('Gemini output preview:', generatedContent.slice(0, 200));
-
-    // -------------------- Save to SQLite --------------------
-    const createdAt = new Date().toISOString();
-    const topicId = 1; // Example: adjust topic assignment as needed
-    const dataResult = await db.runAsync(
-      `INSERT INTO data (name, size, body, topic_id, created_at) VALUES (?, ?, ?, ?, ?)`,
-      name,
-      text.length,
-      text,
-      topicId,
-      createdAt
-    );
-    const dataId = dataResult.insertId;
-    console.log('Data inserted with id:', dataId);
-
-    // Save question & answer
-    const questionText = generatedContent.split('\n')[0] || 'Generated question';
-    const answerText = generatedContent.split('\n')[1] || 'Generated answer';
-    await db.runAsync(
-      `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
-      dataId,
-      questionText,
-      answerText
-    );
-
-    Alert.alert('Import & Gemini processing successful!');
-  } catch (err) {
-    console.error('Import error:', err);
-    Alert.alert('Error processing file', String(err.message || err));
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>

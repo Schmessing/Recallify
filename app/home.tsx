@@ -49,7 +49,7 @@ export default function Home() {
               Upload your study materials here.
             </Text>
 
-            {/* ✅ Use Platform.OS to decide which button to show */}
+            {/* Use Platform.OS to decide which button to show */}
             {Platform.OS === 'web' ? (
               <TouchableOpacity style={styles.button} onPress={handleWebImport}>
                 <Text
@@ -71,40 +71,30 @@ export default function Home() {
             )}
           </View>
 
-          {/* Right Section */}
           <View style={styles.rightColumn}>
             <TouchableOpacity style={styles.viewSection} onPress={handleViewDatasets}>
               <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
                 View Datasets
               </Text>
               <ScrollView>
-                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
+                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.small }]}>
                   Tap to explore and manage your imported datasets. You can check summaries or delete old data.
                 </Text>
               </ScrollView>
             </TouchableOpacity>
 
-            {/* View Generated Content */}
-            <View style={styles.viewSection}>
-            <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
-              View Generated Content
-            </Text>
-            <ScrollView>
-              <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
-                Tap to view your AI-generated flashcards, quizzes, and study summaries.
-              </Text>
-            </ScrollView>
-
-            {/* 👇 New Flashcards Button */}
             <Link href="/flashcards" asChild>
-              <TouchableOpacity style={[styles.button, { marginTop: Spacing.md, backgroundColor: '#00BFA6' }]}>
-                <Text style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}>
-                  View Flashcards
+              <TouchableOpacity style={styles.viewSection} onPress={handleViewGenerated}>
+                <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
+                  View Generated Content
                 </Text>
+                <ScrollView>
+                  <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.small }]}>
+                    Tap to view your AI-generated flashcards, quizzes, and study summaries.
+                  </Text>
+                </ScrollView>
               </TouchableOpacity>
             </Link>
-          </View>
-
           </View>
         </View>
       </SafeAreaView>
