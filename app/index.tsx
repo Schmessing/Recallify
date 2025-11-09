@@ -1,135 +1,36 @@
-// app/index.tsx
-import { Link } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions
-} from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, FontSizes, LineHeights, Spacing } from '../constants/theme';
-import ModalScreen from './modal';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Colors } from '../constants/theme';
+import { useSettings } from './settingsProvider';
 
-export default function Home() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 450;
+export default function LandingScreen() {
+  const router = useRouter();
+  const { darkMode } = useSettings();
 
-  const handleViewDatasets = () => alert('Opening your datasets...');
-  const handleViewGenerated = () => alert('Opening your generated content...');
-  const handleWebImport = () => alert('Import Unavailable on Web');
+  const theme = darkMode ? Colors.dark : Colors.light;
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <StatusBar style="light" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Recallify</Text>
+      <Text style={[styles.subtitle, { color: theme.text }]}>
+        Study Smarter — One Screen at a Time
+      </Text>
 
-        <View style={styles.topBar}>
-          <ModalScreen />
-        </View>
-
-        <View style={[styles.container, { flexDirection: isMobile ? 'column' : 'row' }]}>
-          {/* Import Section */}
-          <View
-            style={[
-              styles.importSection,
-              {
-                marginRight: isMobile ? 0 : Spacing.md,
-                marginBottom: isMobile ? Spacing.md : 0,
-              },
-            ]}
-          >
-            <Text style={[styles.title, { fontSize: FontSizes.xlarge, lineHeight: LineHeights.large }]}>
-              Import
-            </Text>
-            <Text style={[styles.subtitle, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
-              Upload your study materials here.
-            </Text>
-
-            {/* ✅ Use Platform.OS to decide which button to show */}
-            {Platform.OS === 'web' ? (
-              <TouchableOpacity style={styles.button} onPress={handleWebImport}>
-                <Text
-                  style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
-                >
-                  Import Unavailable on Web
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <Link href="/import" asChild>
-                <TouchableOpacity style={styles.button}>
-                  <Text
-                    style={[styles.buttonText, { fontSize: FontSizes.medium, lineHeight: LineHeights.medium }]}
-                  >
-                    Import Data
-                  </Text>
-                </TouchableOpacity>
-              </Link>
-            )}
-          </View>
-
-          {/* Right Section */}
-          <View style={styles.rightColumn}>
-            <TouchableOpacity style={styles.viewSection} onPress={handleViewDatasets}>
-              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
-                View Datasets
-              </Text>
-              <ScrollView>
-                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
-                  Tap to explore and manage your imported datasets. You can check summaries or delete old data.
-                </Text>
-              </ScrollView>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.viewSection} onPress={handleViewGenerated}>
-              <Text style={[styles.title, { fontSize: FontSizes.large, lineHeight: LineHeights.large }]}>
-                View Generated Content
-              </Text>
-              <ScrollView>
-                <Text style={[styles.textBody, { fontSize: FontSizes.regular, lineHeight: LineHeights.medium }]}>
-                  Tap to view your AI-generated flashcards, quizzes, and study summaries.
-                </Text>
-              </ScrollView>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SafeAreaView>
-    </SafeAreaProvider>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: theme.teal }]}
+        onPress={() => router.push('/home')}
+      >
+        <Text style={[styles.buttonText, { color: '#fff' }]}>Get Started</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.dark.background },
-  container: { flex: 1, padding: Spacing.md },
-  topBar: { marginBottom: Spacing.md },
-  importSection: {
-    flex: 2,
-    backgroundColor: Colors.dark.card,
-    borderRadius: 24,
-    padding: Spacing.lg,
-    justifyContent: 'center',
-  },
-  rightColumn: { flex: 3, justifyContent: 'space-between' },
-  viewSection: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
-  title: { fontWeight: '700', color: '#000', marginBottom: Spacing.sm },
-  subtitle: { color: '#000', marginBottom: Spacing.md },
-  textBody: { color: '#000' },
-  button: {
-    backgroundColor: '#8fded0',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: Spacing.md,
-  },
-  buttonText: { color: '#000', fontWeight: '700' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 40, fontWeight: 'bold', marginBottom: 10 },
+  subtitle: { fontSize: 16, marginBottom: 40, textAlign: 'center', width: '80%' },
+  button: { paddingVertical: 14, paddingHorizontal: 40, borderRadius: 14 },
+  buttonText: { fontSize: 18, fontWeight: '600' },
 });

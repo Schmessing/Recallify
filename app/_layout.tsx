@@ -1,6 +1,5 @@
-// app/_layout.tsx
 import { Stack } from 'expo-router';
-import { SettingsProvider } from './settingsProvider'; // import the provider
+import { SettingsProvider } from './settingsProvider';
 
 export default function RootLayout() {
   return (

@@ -1,8 +1,10 @@
 // app/import.tsx
 import * as DocumentPicker from 'expo-document-picker';
+import { useRouter } from 'expo-router';
 import { SQLiteProvider, useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Button, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Colors, Spacing } from '../constants/theme';
 import { useSettings } from './settingsProvider';
 
 export default function ImportScreen() {
@@ -15,192 +17,130 @@ export default function ImportScreen() {
 
 function ImportContent() {
   const db = useSQLiteContext();
-  const { apiUrls } = useSettings(); // URLs and keys from settings
+  const router = useRouter();
+  const { apiUrls, darkMode } = useSettings();
+  const theme = darkMode ? Colors.dark : Colors.light;
+
   const [loading, setLoading] = useState(false);
 
   const handleImport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
-      if ('canceled' in result && result.canceled) return;
+      if (result.canceled) return;
 
-      const pickedFile = ('assets' in result && result.assets?.[0]) || result;
-      const { uri, name, mimeType } = pickedFile;
-      if (!uri) {
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
         Alert.alert('File selection failed');
         return;
       }
 
+      const { uri, name, mimeType } = asset;
       setLoading(true);
+
       let text = '';
 
-      // -------------------- OCR --------------------
       if (mimeType?.startsWith('image/')) {
-        const formData = new FormData();
-        formData.append("apikey", apiUrls.ocrKey); // use key from settings
-        formData.append("language", "eng");
-        formData.append("isOverlayRequired", "false");
-        formData.append("file", { uri, type: mimeType, name } as any);
-
-        const ocrRes = await fetch(apiUrls.ocrUrl, {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "multipart/form-data" },
-          body: formData,
+        const fd = new FormData();
+        fd.append('apikey', apiUrls.ocrKey);
+        fd.append('language', 'eng');
+        fd.append('isOverlayRequired', 'false');
+        fd.append('file', { uri, type: mimeType, name } as any);
+        const resp = await fetch(apiUrls.ocrUrl, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'multipart/form-data' },
+          body: fd,
         });
-        const ocrData = await ocrRes.json();
-        text = ocrData?.ParsedResults?.[0]?.ParsedText?.trim() || '';
-
-      // -------------------- Whisper --------------------
+        const data = await resp.json();
+        text = data?.ParsedResults?.[0]?.ParsedText?.trim() ?? '';
       } else if (mimeType?.startsWith('audio/')) {
-        const formData = new FormData();
-        formData.append('audio', { uri, type: mimeType, name } as any);
-        formData.append('apikey', apiUrls.whisperKey); // key from settings
-
-        const res = await fetch(apiUrls.whisperUrl, { method: 'POST', body: formData });
-        const data = await res.json();
-        text = data.text || '';
-
-      // -------------------- Plain Text --------------------
+        const fd = new FormData();
+        fd.append('audio', { uri, type: mimeType, name } as any);
+        fd.append('apikey', apiUrls.whisperKey);
+        const resp = await fetch(apiUrls.whisperUrl, { method: 'POST', body: fd });
+        const data = await resp.json();
+        text = data?.text ?? '';
       } else if (mimeType === 'text/plain') {
-        const fileResponse = await fetch(uri);
-        const fileBlob = await fileResponse.blob();
-        text = await new File([fileBlob], name).text();
-
+        const fileResp = await fetch(uri);
+        const blob = await fileResp.blob();
+        text = await new File([blob], name).text();
       } else {
         Alert.alert('Unsupported file type');
-        setLoading(false);
         return;
       }
 
-      // -------------------- Gemini --------------------
-      const geminiRes = await fetch(apiUrls.geminiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiUrls.geminiKey}` // key from settings
-        },
-        body: JSON.stringify({
-          prompt: `Generate a question and answer for this content:\n${text}`,
-        }),
+      const gemBody = JSON.stringify({
+        prompt: `Generate one question and its answer for this content:\n${text}`,
       });
-      const geminiData = await geminiRes.json();
-      const generatedContent = geminiData.text || '';
+      const gem = await fetch(apiUrls.geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.geminiKey}` },
+        body: gemBody,
+      });
+      const gdata = await gem.json();
+      const generated = gdata?.text ?? '';
 
-      // -------------------- Save to SQLite --------------------
       const createdAt = new Date().toISOString();
       const topicId = 1;
       const stmt = await db.prepareAsync(
         `INSERT INTO data (name, size, body, topic_id, created_at) VALUES ($name, $size, $body, $topicId, $createdAt)`
       );
-
       let dataId = 0;
       try {
-        const result = await stmt.executeAsync({
-          $name: name,
-          $size: text.length,
-          $body: text,
-          $topicId: topicId,
-          $createdAt: createdAt,
+        const res = await stmt.executeAsync({
+          $name: name, $size: text.length, $body: text, $topicId: topicId, $createdAt: createdAt,
         });
-        dataId = result.lastInsertRowId; // ✅ this works
-      } finally {
-        await stmt.finalizeAsync();
-      }
+        dataId = res.lastInsertRowId;
+      } finally { await stmt.finalizeAsync(); }
 
-      const questionText = generatedContent.split('\n')[0] || 'Generated question';
-      const answerText = generatedContent.split('\n')[1] || 'Generated answer';
+      const [q, a] = generated.split('\n');
       await db.runAsync(
         `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
-        dataId, questionText, answerText
+        dataId, q || 'Generated question', a || 'Generated answer'
       );
 
-      Alert.alert('Import & API processing successful!');
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error processing file', String(err));
+      Alert.alert('Import complete!');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', String(e));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 20, marginBottom: 20 }}>Import a file to process</Text>
-      <Button title="Import File" onPress={handleImport} />
-      {loading && <ActivityIndicator size="large" style={{ marginTop: 20 }} />}
+    <View style={{ flex: 1, padding: Spacing.lg, backgroundColor: theme.background }}>
+      <Text style={{ fontSize: 26, fontWeight: '800', color: theme.text, marginBottom: Spacing.md }}>Import</Text>
+      <Text style={{ color: theme.text, opacity: 0.9, marginBottom: Spacing.lg }}>
+        Upload your study materials here.
+      </Text>
+
+      <TouchableOpacity onPress={handleImport}
+        style={{ backgroundColor: theme.teal, paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
+        <Text style={{ color: '#fff', fontWeight: '700' }}>Import File</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.push('/home')}
+        style={{ marginTop: Spacing.md, paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2, borderColor: theme.teal }}>
+        <Text style={{ color: theme.teal, fontWeight: '700' }}>Back to Home</Text>
+      </TouchableOpacity>
+
+      {loading && <ActivityIndicator size="large" style={{ marginTop: Spacing.lg }} />}
     </View>
   );
 }
 
-// Database initialization
 async function migrateDbIfNeeded(db: SQLiteDatabase) {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
-
-    CREATE TABLE IF NOT EXISTS subjects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS topics (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      subject_id INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS data (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      size INTEGER,
-      body TEXT,
-      topic_id INTEGER,
-      created_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS questions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      data_id INTEGER,
-      question TEXT,
-      answer TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS false_answers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      questions_id INTEGER,
-      false_answer TEXT,
-      answer_level INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS flashcard_set (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      created_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS flashcard_set_questions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      question_id INTEGER,
-      flashcard_set_id INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS quizzes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      created_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS completed_quizzes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      quiz_id INTEGER,
-      result TEXT,
-      answers_selected TEXT,
-      created_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS quiz_questions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      questions_id INTEGER,
-      quiz_id INTEGER
-    );
+    CREATE TABLE IF NOT EXISTS subjects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
+    CREATE TABLE IF NOT EXISTS topics (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, subject_id INTEGER);
+    CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, size INTEGER, body TEXT, topic_id INTEGER, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, data_id INTEGER, question TEXT, answer TEXT);
+    CREATE TABLE IF NOT EXISTS false_answers (id INTEGER PRIMARY KEY AUTOINCREMENT, questions_id INTEGER, false_answer TEXT, answer_level INTEGER);
+    CREATE TABLE IF NOT EXISTS flashcard_set (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS flashcard_set_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, question_id INTEGER, flashcard_set_id INTEGER);
+    CREATE TABLE IF NOT EXISTS quizzes (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS completed_quizzes (id INTEGER PRIMARY KEY AUTOINCREMENT, quiz_id INTEGER, result TEXT, answers_selected TEXT, created_at TEXT);
+    CREATE TABLE IF NOT EXISTS quiz_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, questions_id INTEGER, quiz_id INTEGER);
   `);
-  console.log('Database ready with full schema');
 }

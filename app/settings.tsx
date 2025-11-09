@@ -1,106 +1,113 @@
 // app/settings.tsx
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, Button, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { useSettings } from '../app/settingsProvider'; // Adjust path if needed
+import {
+  ScrollView, StyleSheet,
+  Switch,
+  Text, TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { FontSizes, Spacing } from '../constants/theme';
+import { useSettings } from './settingsProvider';
 
-export default function SettingsPage() {
+export default function SettingsScreen() {
+  const router = useRouter();
   const {
-    language,
-    setLanguage,
-    formality,
-    setFormality,
-    darkMode,
-    setDarkMode,
-    notificationsEnabled,
-    setNotificationsEnabled,
-    apiUrls,
-    setApiUrls,
-    saveDataToFile,
-    importSavedData,
-    clearData,
+    language, setLanguage,
+    formality, setFormality,
+    darkMode, setDarkMode,
+    notificationsEnabled, setNotificationsEnabled,
+    apiUrls, setApiUrls, theme,
+    saveDB, restoreDB, clearDB
   } = useSettings();
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>App Settings</Text>
-
-      {/* Language */}
+    <ScrollView contentContainerStyle={[styles.scroll, { backgroundColor: theme.background }]}>
+      {/* Dark mode */}
       <View style={styles.row}>
-        <Text style={styles.label}>Language:</Text>
-        <Button title={language} onPress={() => setLanguage(language === 'en' ? 'es' : 'en')} />
-      </View>
-
-      {/* Formality */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Formality (1-5):</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          value={formality.toString()}
-          onChangeText={(v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n >= 1 && n <= 5) setFormality(n);
-          }}
-        />
-      </View>
-
-      {/* Dark Mode */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Dark Mode:</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Dark Mode</Text>
         <Switch value={darkMode} onValueChange={setDarkMode} />
       </View>
 
-      {/* Notifications */}
+      {/* Language + Formality + Notifications */}
+      <Text style={[styles.section, { color: theme.text }]}>Language</Text>
+      <TextInput
+        value={language}
+        onChangeText={setLanguage}
+        style={[styles.input, { borderColor: theme.teal, color: theme.text }]}
+        placeholder="en"
+        placeholderTextColor={theme.text + '88'}
+      />
+
+      <Text style={[styles.section, { color: theme.text }]}>Formality (1–5)</Text>
+      <TextInput
+        keyboardType="number-pad"
+        value={String(formality)}
+        onChangeText={(t) => setFormality(Math.max(1, Math.min(5, Number(t || 0))))}
+        style={[styles.input, { borderColor: theme.teal, color: theme.text }]}
+        placeholder="3"
+        placeholderTextColor={theme.text + '88'}
+      />
+
       <View style={styles.row}>
-        <Text style={styles.label}>Notifications:</Text>
+        <Text style={[styles.section, { color: theme.text }]}>Notifications</Text>
         <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} />
       </View>
 
-      {/* API URLs */}
-      <Text style={[styles.header, { marginTop: 20 }]}>API Settings</Text>
-
-      {Object.keys(apiUrls).map((key) => (
-        <View key={key} style={styles.row}>
-          <Text style={styles.label}>{key}:</Text>
+      {/* API settings */}
+      <Text style={[styles.header, { color: theme.text }]}>API Settings</Text>
+      {([
+        ['ocrUrl', 'OCR URL'],
+        ['ocrKey', 'OCR Key'],
+        ['whisperUrl', 'Whisper URL'],
+        ['whisperKey', 'Whisper Key'],
+        ['geminiUrl', 'Gemini URL'],
+        ['geminiKey', 'Gemini Key'],
+      ] as const).map(([key, label]) => (
+        <View key={key} style={{ marginBottom: Spacing.sm }}>
+          <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
           <TextInput
-            style={styles.input}
-            value={apiUrls[key as keyof typeof apiUrls]}
-            onChangeText={(v) =>
-              setApiUrls((prev) => ({ ...prev, [key]: v }))
-            }
+            value={apiUrls[key]}
+            onChangeText={(v) => setApiUrls({ [key]: v } as any)}
+            autoCapitalize="none"
+            style={[styles.input, { borderColor: theme.teal, color: theme.text }]}
+            placeholder={label}
+            placeholderTextColor={theme.text + '88'}
           />
         </View>
       ))}
 
-      {/* Storage Management */}
-      <Text style={[styles.header, { marginTop: 20 }]}>Database</Text>
-      <View style={styles.buttonRow}>
-        <Button title="Save DB" onPress={saveDataToFile} />
-        <Button title="Restore DB" onPress={importSavedData} />
-        <Button
-          title="Clear DB"
-          color="red"
-          onPress={() =>
-            Alert.alert(
-              'Confirm Clear',
-              'Are you sure you want to clear the database?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'OK', onPress: clearData },
-              ]
-            )
-          }
-        />
-      </View>
+      {/* DB buttons */}
+      <Text style={[styles.header, { color: theme.text, marginTop: Spacing.lg }]}>Database</Text>
+      <TouchableOpacity style={[styles.btn, { backgroundColor: theme.teal }]} onPress={saveDB}>
+        <Text style={styles.btnText}>Save DB</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.btn, { backgroundColor: theme.teal }]} onPress={restoreDB}>
+        <Text style={styles.btnText}>Restore DB</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.btnOutline, { borderColor: theme.teal }]} onPress={clearDB}>
+        <Text style={[styles.btnText, { color: theme.teal }]}>Clear DB</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.btn, { backgroundColor: theme.teal, marginTop: Spacing.lg }]} onPress={() => router.push('/home')}>
+        <Text style={styles.btnText}>Back to Home</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff' },
-  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  label: { flex: 1, fontSize: 16 },
-  input: { flex: 2, borderWidth: 1, borderColor: '#ccc', padding: 5, borderRadius: 5 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  scroll: { flexGrow: 1, padding: Spacing.lg, gap: Spacing.sm },
+  title: { fontSize: FontSizes.large, fontWeight: '800' },
+  header: { fontSize: FontSizes.large, fontWeight: '800', marginBottom: Spacing.sm },
+  section: { fontSize: FontSizes.medium, fontWeight: '700', marginTop: Spacing.md, marginBottom: 6 },
+  label: { fontWeight: '700', marginBottom: 6 },
+  input: {
+    borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+  },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  btn: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: Spacing.sm },
+  btnText: { color: '#fff', fontWeight: '700' },
+  btnOutline: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', borderWidth: 2 },
 });

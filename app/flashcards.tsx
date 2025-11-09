@@ -1,75 +1,61 @@
-import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
-import {
-    Animated,
-    Easing,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { useRouter } from 'expo-router';
+import React, { useRef, useState } from 'react';
+import { Animated, Easing, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Colors, Spacing } from '../constants/theme';
+import { useSettings } from './settingsProvider';
 
 type Card = { id: string; question: string; answer: string };
 
 export default function Flashcards() {
   const router = useRouter();
+  const { darkMode } = useSettings();
+  const theme = darkMode ? Colors.dark : Colors.light;
 
-  // demo data (swap later with SQLite/API)
   const [cards] = useState<Card[]>([
-    { id: "1", question: "What is AI?", answer: "Artificial Intelligence" },
-    { id: "2", question: "What does OCR stand for?", answer: "Optical Character Recognition" },
-    { id: "3", question: "Define NLP.", answer: "Natural Language Processing" },
+    { id: '1', question: 'What is AI?', answer: 'Artificial Intelligence' },
+    { id: '2', question: 'What does OCR stand for?', answer: 'Optical Character Recognition' },
+    { id: '3', question: 'Define NLP.', answer: 'Natural Language Processing' },
   ]);
 
-  // keep an Animated.Value per card id
   const animMap = useRef<Record<string, Animated.Value>>({}).current;
-  const flippedSet = useRef<Set<string>>(new Set()); // track flipped state per card
+  const flipped = useRef<Set<string>>(new Set());
 
   const getAnim = (id: string) => {
-    if (!animMap[id]) animMap[id] = new Animated.Value(0); // 0 = front, 1 = back
+    if (!animMap[id]) animMap[id] = new Animated.Value(0); // 0 = SHOW QUESTION, 1 = SHOW ANSWER
     return animMap[id];
   };
 
   const flipCard = (id: string) => {
-    const anim = getAnim(id);
-    const toValue = flippedSet.current.has(id) ? 0 : 1;
-    Animated.timing(anim, {
+    const a = getAnim(id);
+    const toValue = flipped.current.has(id) ? 0 : 1;
+    Animated.timing(a, {
       toValue,
       duration: 350,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
-      if (toValue === 1) flippedSet.current.add(id);
-      else flippedSet.current.delete(id);
+      if (toValue === 1) flipped.current.add(id);
+      else flipped.current.delete(id);
     });
   };
 
   const renderItem = ({ item }: { item: Card }) => {
-    const anim = getAnim(item.id);
+    const a = getAnim(item.id);
 
     const frontStyle = {
       transform: [
         { perspective: 1000 },
-        {
-          rotateY: anim.interpolate({
-            inputRange: [0, 1],
-            outputRange: ["0deg", "180deg"],
-          }),
-        },
+        { rotateY: a.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) },
       ],
+      backfaceVisibility: 'hidden' as const,
     };
 
     const backStyle = {
       transform: [
         { perspective: 1000 },
-        {
-          rotateY: anim.interpolate({
-            inputRange: [0, 1],
-            outputRange: ["180deg", "360deg"],
-          }),
-        },
+        { rotateY: a.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] }) },
       ],
+      backfaceVisibility: 'hidden' as const,
     };
 
     return (
@@ -78,128 +64,66 @@ export default function Flashcards() {
         onPress={() => flipCard(item.id)}
         style={styles.cardTapArea}
       >
-        <View style={styles.cardShadow}>
-          {/* front */}
-          <Animated.View style={[styles.card, styles.cardFront, frontStyle]}>
-            <Text style={styles.label}>Question</Text>
-            <Text style={styles.question}>{item.question}</Text>
-            <Text style={styles.hint}>Tap to flip</Text>
+        <View style={styles.cardStack}>
+          {/* FRONT = QUESTION */}
+          <Animated.View
+            style={[styles.card, { backgroundColor: theme.card }, frontStyle]}
+          >
+            <Text style={[styles.label, { color: theme.teal }]}>QUESTION</Text>
+            <Text style={[styles.text, { color: theme.text }]}>{item.question}</Text>
           </Animated.View>
 
-          {/* back */}
-          <Animated.View style={[styles.card, styles.cardBack, backStyle]}>
-            <Text style={styles.label}>Answer</Text>
-            <Text style={styles.answer}>{item.answer}</Text>
-            <Text style={styles.hint}>Tap to flip back</Text>
+          {/* BACK = ANSWER */}
+          <Animated.View
+            style={[styles.card, styles.cardBack, { backgroundColor: theme.card }, backStyle]}
+          >
+            <Text style={[styles.label, { color: theme.teal }]}>ANSWER</Text>
+            <Text style={[styles.text, { color: theme.text }]}>{item.answer}</Text>
           </Animated.View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  const keyExtractor = (item: Card) => item.id;
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Your Flashcards</Text>
-
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Your Flashcards</Text>
       <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
         data={cards}
-        keyExtractor={keyExtractor}
         renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={{ textAlign: "center" }}>No cards available</Text>}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 16 }}
       />
-
-      <TouchableOpacity style={styles.backButton} onPress={() => router.push("/home")}>
+      <TouchableOpacity
+        style={[styles.backButton, { backgroundColor: theme.teal }]}
+        onPress={() => router.push('/home')}
+      >
         <Text style={styles.backText}>Back to Home</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-const CARD_HEIGHT = 130;
+const CARD_H = 128;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FAF8F2", // light cream
-    padding: 24,
-    paddingTop: 100, // nudges header+cards down a bit
-    alignItems: "stretch", // ensures full-width cards
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#222",
-    marginBottom: 16,
-    alignSelf: "flex-start",
-  },
-  list: { alignSelf: "stretch" },
-  listContent: {
-    paddingBottom: 24,
-    width: "100%",
-  },
-  cardTapArea: {
-    width: "100%",
-    marginBottom: 12,
-  },
-  cardShadow: {
-    height: CARD_HEIGHT,
-    position: "relative",
-  },
+  container: { flex: 1, padding: 24 },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: Spacing.md },
+  cardTapArea: { width: '100%', marginBottom: Spacing.md },
+  cardStack: { height: CARD_H },
   card: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: CARD_HEIGHT,
-    borderRadius: 14,
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: CARD_H,
+    borderRadius: 16,
     padding: 16,
-    backfaceVisibility: "hidden",
-    justifyContent: "center",
-  },
-  cardFront: {
-    backgroundColor: "#DDF5F2",
+    justifyContent: 'center',
   },
   cardBack: {
-    backgroundColor: "#C7EBE6",
+    // keep absolutely stacked; front/back won’t “bleed” due to backfaceVisibility
   },
-  label: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: "#0F766E",
-    marginBottom: 6,
-  },
-  question: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#00796B",
-  },
-  answer: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0B3D3B",
-  },
-  hint: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#355f5c",
-  },
-  backButton: {
-    marginTop: 16,
-    backgroundColor: "#00BFA6",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-  },
-  backText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  label: { fontSize: 12, fontWeight: '900', letterSpacing: 0.6, marginBottom: 6 },
+  text: { fontSize: 16, fontWeight: '700' },
+  backButton: { marginTop: 8, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  backText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
