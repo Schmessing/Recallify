@@ -1,9 +1,22 @@
 // app/import.tsx
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { SQLiteProvider, useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
+import {
+  SQLiteProvider,
+  useSQLiteContext,
+  type SQLiteDatabase
+} from 'expo-sqlite';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+
+// Your app-specific imports
+import { parseDocxToText } from '../components/parseDocx';
 import { Colors, Spacing } from '../constants/theme';
 import { useSettings } from './settingsProvider';
 
@@ -37,45 +50,96 @@ function ImportContent() {
       const { uri, name, mimeType } = asset;
       setLoading(true);
 
-      let text = '';
+      let text = "";
 
-      if (mimeType?.startsWith('image/')) {
-        const fd = new FormData();
-        fd.append('apikey', apiUrls.ocrKey);
-        fd.append('language', 'eng');
-        fd.append('isOverlayRequired', 'false');
-        fd.append('file', { uri, type: mimeType, name } as any);
-        const resp = await fetch(apiUrls.ocrUrl, {
-          method: 'POST',
-          headers: { Accept: 'application/json', 'Content-Type': 'multipart/form-data' },
-          body: fd,
+      if (mimeType === "text/plain") {
+        // Plain text
+        const file = new File([await (await fetch(uri)).blob()], name);
+        text = await file.text();
+      }
+
+      // PDF: convert to base64 via blob + FileReader
+      else if (mimeType === "application/pdf") {
+        const blob = await (await fetch(uri)).blob();
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]); // remove data: prefix
+          reader.onerror = reject;
+          reader.readAsDataURL(blob); // reads as "data:application/pdf;base64,...."
         });
-        const data = await resp.json();
-        text = data?.ParsedResults?.[0]?.ParsedText?.trim() ?? '';
-      } else if (mimeType?.startsWith('audio/')) {
-        const fd = new FormData();
-        fd.append('audio', { uri, type: mimeType, name } as any);
-        fd.append('apikey', apiUrls.whisperKey);
-        const resp = await fetch(apiUrls.whisperUrl, { method: 'POST', body: fd });
-        const data = await resp.json();
-        text = data?.text ?? '';
-      } else if (mimeType === 'text/plain') {
-        const fileResp = await fetch(uri);
-        const blob = await fileResp.blob();
-        text = await new File([blob], name).text();
-      } else {
+
+        const extractBody = JSON.stringify({
+          prompt: `Extract readable text from this PDF (base64-encoded). Return only the text.\n${base64}`,
+        });
+
+        const extractResp = await fetch(apiUrls.geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiUrls.geminiKey}`,
+          },
+          body: extractBody,
+        });
+
+        const extractData = await extractResp.json();
+        text = (extractData?.text ?? "").trim();
+      }
+
+      // DOC: convert to base64 via blob + FileReader
+      else if (mimeType === "application/msword") {
+        const blob = await (await fetch(uri)).blob();
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        const extractBody = JSON.stringify({
+          prompt: `Extract readable text from this Microsoft Word (.doc) file (base64-encoded). Return only the text.\n${base64}`,
+        });
+
+        const extractResp = await fetch(apiUrls.geminiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiUrls.geminiKey}`,
+          },
+          body: extractBody,
+        });
+
+        const extractData = await extractResp.json();
+        text = (extractData?.text ?? "").trim();
+      }
+
+      // DOCX: parse locally using blobToArrayBuffer
+      else if (
+        mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        const blob = await (await fetch(uri)).blob();
+        const arrayBuffer = await blobToArrayBuffer(blob); // helper function
+        text = await parseDocxToText(arrayBuffer);
+        text = text.trim();
+      }
+
+      else {
         Alert.alert('Unsupported file type');
         return;
       }
 
+      // Generate Q&A
       const gemBody = JSON.stringify({
         prompt: `Generate one question and its answer for this content:\n${text}`,
       });
+
       const gem = await fetch(apiUrls.geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.geminiKey}` },
         body: gemBody,
       });
+
       const gdata = await gem.json();
       const generated = gdata?.text ?? '';
 
@@ -84,13 +148,16 @@ function ImportContent() {
       const stmt = await db.prepareAsync(
         `INSERT INTO data (name, size, body, topic_id, created_at) VALUES ($name, $size, $body, $topicId, $createdAt)`
       );
+
       let dataId = 0;
       try {
         const res = await stmt.executeAsync({
           $name: name, $size: text.length, $body: text, $topicId: topicId, $createdAt: createdAt,
         });
         dataId = res.lastInsertRowId;
-      } finally { await stmt.finalizeAsync(); }
+      } finally {
+        await stmt.finalizeAsync();
+      }
 
       const [q, a] = generated.split('\n');
       await db.runAsync(
@@ -143,4 +210,12 @@ async function migrateDbIfNeeded(db: SQLiteDatabase) {
     CREATE TABLE IF NOT EXISTS completed_quizzes (id INTEGER PRIMARY KEY AUTOINCREMENT, quiz_id INTEGER, result TEXT, answers_selected TEXT, created_at TEXT);
     CREATE TABLE IF NOT EXISTS quiz_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, questions_id INTEGER, quiz_id INTEGER);
   `);
+}
+async function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = (e) => reject(e);
+    reader.readAsArrayBuffer(blob);
+  });
 }
