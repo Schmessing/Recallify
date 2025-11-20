@@ -1,6 +1,6 @@
 // app/settingsProvider.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -26,6 +26,7 @@ type SettingsContextType = {
   theme: typeof Colors.light;
 
   // DB helpers
+  dbSize: number;
   saveDB: () => Promise<void>;
   restoreDB: () => Promise<void>;
   clearDB: () => Promise<void>;
@@ -40,6 +41,7 @@ export const useSettings = () => {
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // ---------- state ----------
+  const [dbSize, setDbSize] = useState(0);
   const [language, setLanguage] = useState('en');
   const [formality, setFormality] = useState<number>(3);
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -92,33 +94,67 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [notificationsEnabled]);
 
   // ---------- DB helpers ----------
-  const dbFile = `${FileSystem.documentDirectory ?? ''}SQLite/app.db`;
-  const backupFile = `${FileSystem.documentDirectory ?? ''}SQLite/app_backup.db`;
+  const dbFile = new File("SQLite/app.db");
+  const backupFile = new File("SQLite/app_backup.db");
 
   const saveDB = async () => {
     try {
-      const info = await FileSystem.getInfoAsync(dbFile);
-      if (!info.exists) return Alert.alert('No database found');
-      await FileSystem.copyAsync({ from: dbFile, to: backupFile });
-      Alert.alert('Database saved!');
-    } catch (e) { Alert.alert('Failed to save database', String(e)); }
+      const info = await dbFile.info();
+      if (!info.exists) {
+        Alert.alert("No database found");
+        return;
+      }
+
+      await dbFile.copy(backupFile);  // File -> File
+      Alert.alert("Database saved!");
+    } catch (e) {
+      Alert.alert("Failed to save database", String(e));
+    }
   };
 
   const restoreDB = async () => {
     try {
-      const info = await FileSystem.getInfoAsync(backupFile);
-      if (!info.exists) return Alert.alert('No backup found');
-      await FileSystem.copyAsync({ from: backupFile, to: dbFile });
-      Alert.alert('Database restored!');
-    } catch (e) { Alert.alert('Failed to restore database', String(e)); }
+      const info = await backupFile.info();
+      if (!info.exists) {
+        Alert.alert("No backup found");
+        return;
+      }
+
+      await backupFile.copy(dbFile);  // File -> File
+      Alert.alert("Database restored!");
+    } catch (e) {
+      Alert.alert("Failed to restore database", String(e));
+    }
   };
 
   const clearDB = async () => {
     try {
-      await FileSystem.deleteAsync(dbFile, { idempotent: true });
-      Alert.alert('Database cleared!');
-    } catch (e) { Alert.alert('Failed to clear database', String(e)); }
+      await dbFile.delete(); // NO arguments allowed
+      Alert.alert("Database cleared!");
+    } catch (e) {
+      Alert.alert("Failed to clear database", String(e));
+    }
   };
+
+  // Optional: check DB size on interval
+  const checkdbSize = async () => {
+    try {
+      const info = await dbFile.info();
+      if (info.exists && info.size) {
+        setDbSize(info.size / (1024 * 1024));
+      } else {
+        setDbSize(0);
+      }
+    } catch (e) {
+      console.warn("Failed to check DB size:", e);
+    }
+  };
+
+  useEffect(() => {
+    checkdbSize();
+    const interval = setInterval(checkdbSize, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <SettingsContext.Provider value={{
@@ -127,7 +163,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       darkMode, setDarkMode,
       notificationsEnabled, setNotificationsEnabled,
       apiUrls, setApiUrls, theme,
-      saveDB, restoreDB, clearDB
+      saveDB, restoreDB, clearDB, dbSize
     }}>
       {children}
     </SettingsContext.Provider>
