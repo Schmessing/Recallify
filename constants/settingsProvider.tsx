@@ -2,7 +2,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
-import * as SQLite from 'expo-sqlite';
+import {
+  useSQLiteContext
+} from 'expo-sqlite';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { Colors } from './theme';
@@ -54,7 +56,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const theme = useMemo(() => (darkMode ? Colors.dark : Colors.light), [darkMode]);
   const setApiUrls = (patch: Partial<ApiUrls>) =>
-    setApiUrlsState(prev => ({ ...defaultApiUrls, ...prev, ...patch }));
+    setApiUrlsState(prev => ({ ...prev, ...patch }));
 
   // ---------- load settings ----------
   useEffect(() => {
@@ -105,7 +107,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [notificationsEnabled]);
 
   // ---------- DB helpers ----------
-  const db = SQLite.openDatabase('app.db');
+  const db = useSQLiteContext();
   const dbPath = db.databasePath;
 
   const dbFile = new File(dbPath);

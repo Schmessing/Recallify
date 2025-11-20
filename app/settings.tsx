@@ -2,14 +2,25 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  ScrollView, StyleSheet,
+  ScrollView,
+  StyleSheet,
   Switch,
-  Text, TextInput,
+  Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import { useSettings } from '../constants/settingsProvider';
 import { FontSizes, Spacing } from '../constants/theme';
+
+// Define type for API URLs
+interface ApiUrls {
+  ocrUrl: string;
+  ocrKey: string;
+  googletranscriptUrl: string;
+  googletranscriptKey: string;
+  geminiKey: string;
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -62,14 +73,15 @@ export default function SettingsScreen() {
         ['ocrKey', 'OCR Key'],
         ['googletranscriptUrl', 'Google Transcription URL'],
         ['googletranscriptKey', 'Google Transcription Key'],
-        ['geminiUrl', 'Gemini URL'],
         ['geminiKey', 'Gemini Key'],
       ] as const).map(([key, label]) => (
         <View key={key} style={{ marginBottom: Spacing.sm }}>
           <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
           <TextInput
             value={apiUrls[key]}
-            onChangeText={(v) => setApiUrls({ [key]: v } as any)}
+            onChangeText={(v) =>
+              setApiUrls(prev => ({ ...prev, [key]: v } as ApiUrls))
+            }
             autoCapitalize="none"
             style={[styles.input, { borderColor: theme.teal, color: theme.text }]}
             placeholder={label}
@@ -90,7 +102,10 @@ export default function SettingsScreen() {
         <Text style={[styles.btnText, { color: theme.teal }]}>Clear DB</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btn, { backgroundColor: theme.teal, marginTop: Spacing.lg }]} onPress={() => router.push('/home')}>
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: theme.teal, marginTop: Spacing.lg }]}
+        onPress={() => router.push('/home')}
+      >
         <Text style={styles.btnText}>Back to Home</Text>
       </TouchableOpacity>
     </ScrollView>
