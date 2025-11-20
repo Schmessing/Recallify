@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSettings } from '../constants/settingsProvider';
 import { FontSizes, Spacing } from '../constants/theme';
-import { useSettings } from './settingsProvider';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -60,8 +60,8 @@ export default function SettingsScreen() {
       {([
         ['ocrUrl', 'OCR URL'],
         ['ocrKey', 'OCR Key'],
-        ['whisperUrl', 'Whisper URL'],
-        ['whisperKey', 'Whisper Key'],
+        ['googletranscriptUrl', 'Google Transcription URL'],
+        ['googletranscriptKey', 'Google Transcription Key'],
         ['geminiUrl', 'Gemini URL'],
         ['geminiKey', 'Gemini Key'],
       ] as const).map(([key, label]) => (

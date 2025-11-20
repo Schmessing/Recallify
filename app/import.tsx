@@ -1,4 +1,5 @@
 // app/import.tsx
+import { GoogleGenAI } from '@google/genai';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import {
@@ -16,9 +17,8 @@ import {
 } from 'react-native';
 
 // Your app-specific imports
-import { parseDocxToText } from '../components/parseDocx';
+import { useSettings } from '../constants/settingsProvider';
 import { Colors, Spacing } from '../constants/theme';
-import { useSettings } from './settingsProvider';
 
 export default function ImportScreen() {
   return (
@@ -36,143 +36,205 @@ function ImportContent() {
 
   const [loading, setLoading] = useState(false);
 
+  if (!db) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" />
+          <Text>Initializing database...</Text>
+        </View>
+      );
+    }
+
   const handleImport = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
-      if (result.canceled) return;
+  try {
+    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+    if (result.canceled) return;
 
-      const asset = result.assets?.[0];
-      if (!asset?.uri) {
-        Alert.alert('File selection failed');
-        return;
-      }
+    const asset = result.assets?.[0];
+    if (!asset?.uri) {
+      Alert.alert('File selection failed');
+      return;
+    }
 
-      const { uri, name, mimeType } = asset;
-      setLoading(true);
+    const { uri, name, mimeType } = asset;
+    setLoading(true);
 
-      let text = "";
+    let text = "";
 
-      if (mimeType === "text/plain") {
-        // Plain text
-        const file = new File([await (await fetch(uri)).blob()], name);
-        text = await file.text();
-      }
+    if (mimeType === "text/plain") {
+      // Plain text
+      const file = new File([await (await fetch(uri)).blob()], name);
+      text = await file.text();
+    }
 
-      // PDF: convert to base64 via blob + FileReader
-      else if (mimeType === "application/pdf") {
-        const blob = await (await fetch(uri)).blob();
+    // PDF
+    else if (mimeType === "application/pdf") {
+      const blob = await (await fetch(uri)).blob();
 
-        const base64 = await new Promise<string>((resolve, reject) => {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const extractBody = JSON.stringify({
+        prompt: `Extract readable text from this PDF (base64-encoded). Return only the text.\n${base64}`,
+      });
+
+      const extractResp = await fetch(apiUrls.geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.geminiKey}` },
+        body: extractBody,
+      });
+
+      const extractData = await extractResp.json();
+      text = (extractData?.text ?? "").trim();
+    }
+
+    // TEXT-BASED OFFICE DOCUMENTS: DOC, DOCX, XLSX, PPT, etc.
+    else if (
+      mimeType === "application/msword" ||
+      mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      mimeType === "application/vnd.ms-excel" ||
+      mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      mimeType === "application/vnd.ms-powerpoint" ||
+      mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ) {
+      async function arrayBufferToBase64(arrayBuffer: ArrayBuffer): Promise<string> {
+        return new Promise((resolve, reject) => {
+          const blob = new Blob([arrayBuffer]);
           const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]); // remove data: prefix
-          reader.onerror = reject;
-          reader.readAsDataURL(blob); // reads as "data:application/pdf;base64,...."
-        });
-
-        const extractBody = JSON.stringify({
-          prompt: `Extract readable text from this PDF (base64-encoded). Return only the text.\n${base64}`,
-        });
-
-        const extractResp = await fetch(apiUrls.geminiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiUrls.geminiKey}`,
-          },
-          body: extractBody,
-        });
-
-        const extractData = await extractResp.json();
-        text = (extractData?.text ?? "").trim();
-      }
-
-      // DOC: convert to base64 via blob + FileReader
-      else if (mimeType === "application/msword") {
-        const blob = await (await fetch(uri)).blob();
-
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onloadend = () => {
+            const base64String = (reader.result as string).split(',')[1];
+            resolve(base64String);
+          };
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
-
-        const extractBody = JSON.stringify({
-          prompt: `Extract readable text from this Microsoft Word (.doc) file (base64-encoded). Return only the text.\n${base64}`,
-        });
-
-        const extractResp = await fetch(apiUrls.geminiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiUrls.geminiKey}`,
-          },
-          body: extractBody,
-        });
-
-        const extractData = await extractResp.json();
-        text = (extractData?.text ?? "").trim();
       }
 
-      // DOCX: parse locally using blobToArrayBuffer
-      else if (
-        mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      ) {
-        const blob = await (await fetch(uri)).blob();
-        const arrayBuffer = await blobToArrayBuffer(blob); // helper function
-        text = await parseDocxToText(arrayBuffer);
-        text = text.trim();
-      }
+      const blob = await (await fetch(uri)).blob();
+      const arrayBuffer = await blobToArrayBuffer(blob);
+      const base64 = await arrayBufferToBase64(arrayBuffer);
 
-      else {
-        Alert.alert('Unsupported file type');
-        return;
-      }
+      console.log('Base64 content size:', base64.length);
 
-      // Generate Q&A
-      const gemBody = JSON.stringify({
-        prompt: `Generate one question and its answer for this content:\n${text}`,
+      const prompt = `Extract readable text from this document (base64-encoded). Return only the text:\n${base64}`;
+
+      const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
+
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          { parts: [{ text: prompt }] }
+        ]
       });
 
-      const gem = await fetch(apiUrls.geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.geminiKey}` },
-        body: gemBody,
-      });
-
-      const gdata = await gem.json();
-      const generated = gdata?.text ?? '';
-
-      const createdAt = new Date().toISOString();
-      const topicId = 1;
-      const stmt = await db.prepareAsync(
-        `INSERT INTO data (name, size, body, topic_id, created_at) VALUES ($name, $size, $body, $topicId, $createdAt)`
-      );
-
-      let dataId = 0;
-      try {
-        const res = await stmt.executeAsync({
-          $name: name, $size: text.length, $body: text, $topicId: topicId, $createdAt: createdAt,
-        });
-        dataId = res.lastInsertRowId;
-      } finally {
-        await stmt.finalizeAsync();
-      }
-
-      const [q, a] = generated.split('\n');
-      await db.runAsync(
-        `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
-        dataId, q || 'Generated question', a || 'Generated answer'
-      );
-
-      Alert.alert('Import complete!');
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Error', String(e));
-    } finally {
-      setLoading(false);
+      text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      console.log('Extracted text:', text);
     }
-  };
+
+
+    // IMAGE: OCR API
+    else if (mimeType?.startsWith("image/")) {
+      const blob = await (await fetch(uri)).blob();
+
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const extractBody = JSON.stringify({
+        prompt: `Extract readable text from this image (base64-encoded). Return only the text.\n${base64}`,
+      });
+
+      const extractResp = await fetch(apiUrls.ocrUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.ocrKey}` },
+        body: extractBody,
+      });
+
+      const extractData = await extractResp.json();
+      text = (extractData?.text ?? "").trim();
+    }
+
+    // AUDIO/VIDEO: Google Transcript API
+    else if (mimeType?.startsWith("audio/") || mimeType?.startsWith("video/")) {
+      const blob = await (await fetch(uri)).blob();
+
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const extractBody = JSON.stringify({
+        prompt: `Transcribe the spoken content from this ${mimeType} file (base64-encoded). Return only the text.\n${base64}`,
+      });
+
+      const extractResp = await fetch(apiUrls.googletranscriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.googletranscriptKey}` },
+        body: extractBody,
+      });
+
+      const extractData = await extractResp.json();
+      text = (extractData?.text ?? "").trim();
+    }
+
+    else {
+      Alert.alert('Unsupported file type');
+      return;
+    }
+
+    // Generate Q&A
+    const gemBody = JSON.stringify({
+      prompt: `Generate one question and its answer for this content:\n${text}`,
+    });
+
+    const gem = await fetch(apiUrls.geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiUrls.geminiKey}` },
+      body: gemBody,
+    });
+
+    const gdata = await gem.json();
+    const generated = gdata?.text ?? '';
+
+    const createdAt = new Date().toISOString();
+    const topicId = 1;
+    const stmt = await db.prepareAsync(
+      `INSERT INTO data (name, size, body, topic_id, created_at) VALUES ($name, $size, $body, $topicId, $createdAt)`
+    );
+
+    let dataId = 0;
+    try {
+      const res = await stmt.executeAsync({
+        $name: name, $size: text.length, $body: text, $topicId: topicId, $createdAt: createdAt,
+      });
+      dataId = res.lastInsertRowId;
+    } finally {
+      await stmt.finalizeAsync();
+    }
+
+    const [q, a] = generated.split('\n');
+    await db.runAsync(
+      `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
+      dataId, q || 'Generated question', a || 'Generated answer'
+    );
+
+    Alert.alert('Import complete!');
+  } catch (e) {
+    console.error(e);
+    Alert.alert('Error', String(e));
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={{ flex: 1, padding: Spacing.lg, backgroundColor: theme.background }}>

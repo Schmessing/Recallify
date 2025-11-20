@@ -2,13 +2,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
+import * as SQLite from 'expo-sqlite';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
-import { Colors } from '../constants/theme';
+import { Colors } from './theme';
 
 type ApiUrls = {
   ocrUrl: string; ocrKey: string;
-  whisperUrl: string; whisperKey: string;
+  googletranscriptUrl: string; googletranscriptKey: string;
   geminiUrl: string; geminiKey: string;
 };
 
@@ -47,9 +48,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
   const [apiUrls, setApiUrlsState] = useState<ApiUrls>({
-    ocrUrl: '', ocrKey: '',
-    whisperUrl: '', whisperKey: '',
-    geminiUrl: '', geminiKey: '',
+    ocrUrl: 'https://api.ocr.space/parse/image', ocrKey: 'K84996160788957',
+    googletranscriptUrl: 'https://speech.googleapis.com', googletranscriptKey: 'AIzaSyBz3uzo8P4eH6tw2ZEPHqtfZVv3IJkgPi8',
+    geminiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', geminiKey: 'AIzaSyA3tBRyfZuYH33JJVmJleoRkiBR1u5Q3gQ',
   });
 
   const theme = useMemo(() => (darkMode ? Colors.dark : Colors.light), [darkMode]);
@@ -94,8 +95,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [notificationsEnabled]);
 
   // ---------- DB helpers ----------
-  const dbFile = new File("SQLite/app.db");
-  const backupFile = new File("SQLite/app_backup.db");
+  const db = SQLite.openDatabaseSync("app.db");
+  const dbPath = db.databasePath;
+
+  const dbFile = new File(dbPath);
+  const backupFile = new File(dbPath.replace("app.db", "app_backup.db"));
 
   const saveDB = async () => {
     try {
@@ -139,7 +143,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Optional: check DB size on interval
   const checkdbSize = async () => {
     try {
-      const info = await dbFile.info();
+      const info = dbFile.info();
       if (info.exists && info.size) {
         setDbSize(info.size / (1024 * 1024));
       } else {

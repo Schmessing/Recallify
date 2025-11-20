@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Animated, Easing, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSettings } from '../constants/settingsProvider';
 import { Colors, Spacing } from '../constants/theme';
-import { useSettings } from './settingsProvider';
 
 type Card = { id: string; question: string; answer: string };
 
