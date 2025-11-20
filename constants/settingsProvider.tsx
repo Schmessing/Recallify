@@ -9,24 +9,17 @@ import { Colors } from './theme';
 
 type ApiUrls = {
   ocrUrl: string; ocrKey: string;
-  googletranscriptUrl: string; googletranscriptKey: string;
-  geminiUrl: string; geminiKey: string;
+  googletranscriptUrl: string; googletranscriptKey: string; 
+  geminiKey: string;
 };
 
 type SettingsContextType = {
-  // prefs
   language: string; setLanguage: (v: string) => void;
   formality: number; setFormality: (v: number) => void;
   darkMode: boolean; setDarkMode: (v: boolean) => void;
   notificationsEnabled: boolean; setNotificationsEnabled: (v: boolean) => void;
-
-  // api
   apiUrls: ApiUrls; setApiUrls: (u: Partial<ApiUrls>) => void;
-
-  // theme object (already resolved by darkMode)
   theme: typeof Colors.light;
-
-  // DB helpers
   dbSize: number;
   saveDB: () => Promise<void>;
   restoreDB: () => Promise<void>;
@@ -41,24 +34,29 @@ export const useSettings = () => {
 };
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  // ---------- defaults ----------
+  const defaultApiUrls: ApiUrls = {
+    ocrUrl: 'https://api.ocr.space/parse/image',
+    ocrKey: 'K84996160788957',
+    googletranscriptUrl: 'https://speech.googleapis.com',
+    googletranscriptKey: 'AIzaSyBz3uzo8P4eH6tw2ZEPHqtfZVv3IJkgPi8',
+    geminiKey: 'AIzaSyA3tBRyfZuYH33JJVmJleoRkiBR1u5Q3gQ',
+  };
+
   // ---------- state ----------
-  const [dbSize, setDbSize] = useState(0);
+  const [loadingSettings, setLoadingSettings] = useState(true);
   const [language, setLanguage] = useState('en');
   const [formality, setFormality] = useState<number>(3);
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
-  const [apiUrls, setApiUrlsState] = useState<ApiUrls>({
-    ocrUrl: 'https://api.ocr.space/parse/image', ocrKey: 'K84996160788957',
-    googletranscriptUrl: 'https://speech.googleapis.com', googletranscriptKey: 'AIzaSyBz3uzo8P4eH6tw2ZEPHqtfZVv3IJkgPi8',
-    geminiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', geminiKey: 'AIzaSyA3tBRyfZuYH33JJVmJleoRkiBR1u5Q3gQ',
-  });
+  const [apiUrls, setApiUrlsState] = useState<ApiUrls>(defaultApiUrls);
+  const [dbSize, setDbSize] = useState(0);
 
   const theme = useMemo(() => (darkMode ? Colors.dark : Colors.light), [darkMode]);
-
   const setApiUrls = (patch: Partial<ApiUrls>) =>
-    setApiUrlsState(prev => ({ ...prev, ...patch }));
+    setApiUrlsState(prev => ({ ...defaultApiUrls, ...prev, ...patch }));
 
-  // ---------- load/persist ----------
+  // ---------- load settings ----------
   useEffect(() => {
     (async () => {
       try {
@@ -69,20 +67,32 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           setFormality(s.formality ?? 3);
           setDarkMode(s.darkMode ?? false);
           setNotificationsEnabled(s.notificationsEnabled ?? false);
-          setApiUrlsState(s.apiUrls ?? apiUrls);
+
+          // merge apiUrls safely with defaults
+          setApiUrlsState(prev => ({
+          ...defaultApiUrls,
+          ...prev,
+          ...(s.apiUrls || {})
+          }));
         }
-      } catch { /* ignore */ }
+      } catch (e) {
+        console.warn('Failed to load settings:', e);
+      }finally {
+      setLoadingSettings(false);
+    }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---------- persist settings ----------
   useEffect(() => {
-    AsyncStorage.setItem('appSettings', JSON.stringify({
-      language, formality, darkMode, notificationsEnabled, apiUrls
-    }));
-  }, [language, formality, darkMode, notificationsEnabled, apiUrls]);
+    if (!loadingSettings) { // PATCH: only save after load
+      AsyncStorage.setItem('appSettings', JSON.stringify({
+        language, formality, darkMode, notificationsEnabled, apiUrls
+      }));
+    }
+  }, [language, formality, darkMode, notificationsEnabled, apiUrls, loadingSettings]);
 
-  // ---------- notifications permission ----------
+  // ---------- notifications ----------
   useEffect(() => {
     (async () => {
       if (!notificationsEnabled) return;
@@ -95,7 +105,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [notificationsEnabled]);
 
   // ---------- DB helpers ----------
-  const db = SQLite.openDatabaseSync("app.db");
+  const db = SQLite.openDatabase('app.db');
   const dbPath = db.databasePath;
 
   const dbFile = new File(dbPath);
@@ -108,8 +118,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         Alert.alert("No database found");
         return;
       }
-
-      await dbFile.copy(backupFile);  // File -> File
+      await dbFile.copy(backupFile);
       Alert.alert("Database saved!");
     } catch (e) {
       Alert.alert("Failed to save database", String(e));
@@ -123,8 +132,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         Alert.alert("No backup found");
         return;
       }
-
-      await backupFile.copy(dbFile);  // File -> File
+      await backupFile.copy(dbFile);
       Alert.alert("Database restored!");
     } catch (e) {
       Alert.alert("Failed to restore database", String(e));
@@ -133,17 +141,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const clearDB = async () => {
     try {
-      await dbFile.delete(); // NO arguments allowed
+      await dbFile.delete();
       Alert.alert("Database cleared!");
     } catch (e) {
       Alert.alert("Failed to clear database", String(e));
     }
   };
 
-  // Optional: check DB size on interval
-  const checkdbSize = async () => {
+  // ---------- DB size check ----------
+  const checkDbSize = async () => {
     try {
-      const info = dbFile.info();
+      const info = await dbFile.info();
       if (info.exists && info.size) {
         setDbSize(info.size / (1024 * 1024));
       } else {
@@ -155,10 +163,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    checkdbSize();
-    const interval = setInterval(checkdbSize, 60000);
+    checkDbSize();
+    const interval = setInterval(checkDbSize, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  if (loadingSettings) return null;
 
   return (
     <SettingsContext.Provider value={{
@@ -166,8 +176,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       formality, setFormality,
       darkMode, setDarkMode,
       notificationsEnabled, setNotificationsEnabled,
-      apiUrls, setApiUrls, theme,
-      saveDB, restoreDB, clearDB, dbSize
+      apiUrls, setApiUrls,
+      theme,
+      saveDB, restoreDB, clearDB,
+      dbSize
     }}>
       {children}
     </SettingsContext.Provider>

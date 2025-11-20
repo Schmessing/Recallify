@@ -101,39 +101,41 @@ function ImportContent() {
       mimeType === "application/vnd.ms-powerpoint" ||
       mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     ) {
-      async function arrayBufferToBase64(arrayBuffer: ArrayBuffer): Promise<string> {
-        return new Promise((resolve, reject) => {
-          const blob = new Blob([arrayBuffer]);
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64String = (reader.result as string).split(',')[1];
-            resolve(base64String);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      }
+      // Convert ArrayBuffer to base64 (Expo/React Native compatible)
+      const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer): string => {
+        let binary = '';
+        const bytes = new Uint8Array(arrayBuffer);
+        const chunkSize = 0x8000; // avoid stack overflow
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, i + chunkSize);
+          binary += String.fromCharCode(...chunk);
+        }
+        return global.btoa(binary); // global.btoa is available in React Native
+      };
 
-      const blob = await (await fetch(uri)).blob();
-      const arrayBuffer = await blobToArrayBuffer(blob);
-      const base64 = await arrayBufferToBase64(arrayBuffer);
+      // Fetch the file and convert to base64
+      const res = await fetch(uri);
+      const arrayBuffer = await res.arrayBuffer();
+      const base64 = arrayBufferToBase64(arrayBuffer);
 
       console.log('Base64 content size:', base64.length);
 
       const prompt = `Extract readable text from this document (base64-encoded). Return only the text:\n${base64}`;
 
-      const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
+      // Call Gemini API
+      console.log('Gemini API key:', apiUrls.geminiKey);
 
+      
+      const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
       const result = await genAI.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: [
-          { parts: [{ text: prompt }] }
-        ]
+        contents: [{ parts: [{ text: prompt }] }],
       });
 
       text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
       console.log('Extracted text:', text);
     }
+
 
 
     // IMAGE: OCR API
