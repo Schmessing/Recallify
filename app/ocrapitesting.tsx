@@ -1,8 +1,49 @@
+import { useState } from "react";
+
 export default function OCRAPITesting() {
-    //console.log("hi");
-    const ocrSpace = require('ocr-space-api-wrapper');
+  const [result, setResult] = useState("");
+  const [error, setError] = useState("");
 
-    const res1 = ocrSpace('http://dl.a9t9.com/ocrbenchmark/eng.png', { apiKey: 'K85413674888957'});
+  const runOCR = async () => {
+    setError("");
+    setResult("");
 
-    console.log('Remote File Result: ', res1);
+    try {
+      const formData = new FormData();
+      formData.append("apikey", "K85413674888957");
+      formData.append("url", "http://dl.a9t9.com/ocrbenchmark/eng.png");
+      formData.append("language", "eng");
+
+      const res = await fetch("https://api.ocr.space/parse/image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!data.ParsedResults) {
+        setError("OCR failed: " + JSON.stringify(data));
+        return;
+      }
+
+      const text = data.ParsedResults[0].ParsedText;
+      setResult(text);
+    } catch (e) {
+      console.error("OCR error:", e);
+      setError("OCR error: " + e.message);
+    }
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>OCR Space Test</h1>
+
+      <button onClick={runOCR}>Run OCR</button>
+
+      {error && <p style={{ color: "red" }}>Error: {error}</p>}
+
+      <h3>Result:</h3>
+      <pre>{result}</pre>
+    </div>
+  );
 }
