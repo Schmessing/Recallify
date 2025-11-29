@@ -1,17 +1,18 @@
 // app/settingsProvider.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
-import * as Notifications from 'expo-notifications';
-import {
-  useSQLiteContext
-} from 'expo-sqlite';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useSQLiteContext } from 'expo-sqlite';
+import React, {
+  createContext, useContext, useEffect,
+  useMemo, useState
+} from 'react';
 import { Alert } from 'react-native';
 import { Colors } from './theme';
 
+// ---------- types ----------
 type ApiUrls = {
   ocrUrl: string; ocrKey: string;
-  googletranscriptUrl: string; googletranscriptKey: string; 
+  googletranscriptUrl: string; googletranscriptKey: string;
   geminiKey: string;
 };
 
@@ -19,7 +20,6 @@ type SettingsContextType = {
   language: string; setLanguage: (v: string) => void;
   formality: number; setFormality: (v: number) => void;
   darkMode: boolean; setDarkMode: (v: boolean) => void;
-  notificationsEnabled: boolean; setNotificationsEnabled: (v: boolean) => void;
   apiUrls: ApiUrls; setApiUrls: (u: Partial<ApiUrls>) => void;
   theme: typeof Colors.light;
   dbSize: number;
@@ -28,15 +28,17 @@ type SettingsContextType = {
   clearDB: () => Promise<void>;
 };
 
+// ---------- context ----------
 const SettingsContext = createContext<SettingsContextType | null>(null);
-export const useSettings = () => {
+
+const useSettings = () => {
   const ctx = useContext(SettingsContext);
   if (!ctx) throw new Error('useSettings must be used within SettingsProvider');
   return ctx;
 };
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  // ---------- defaults ----------
+// ---------- provider ----------
+function SettingsProvider({ children }: { children: React.ReactNode }) {
   const defaultApiUrls: ApiUrls = {
     ocrUrl: 'https://api.ocr.space/parse/image',
     ocrKey: 'K84996160788957',
@@ -45,12 +47,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     geminiKey: 'AIzaSyA3tBRyfZuYH33JJVmJleoRkiBR1u5Q3gQ',
   };
 
-  // ---------- state ----------
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [language, setLanguage] = useState('en');
   const [formality, setFormality] = useState<number>(3);
   const [darkMode, setDarkMode] = useState<boolean>(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
   const [apiUrls, setApiUrlsState] = useState<ApiUrls>(defaultApiUrls);
   const [dbSize, setDbSize] = useState(0);
 
@@ -68,47 +68,33 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           setLanguage(s.language ?? 'en');
           setFormality(s.formality ?? 3);
           setDarkMode(s.darkMode ?? false);
-          setNotificationsEnabled(s.notificationsEnabled ?? false);
 
-          // merge apiUrls safely with defaults
           setApiUrlsState(prev => ({
-          ...defaultApiUrls,
-          ...prev,
-          ...(s.apiUrls || {})
+            ...defaultApiUrls,
+            ...prev,
+            ...(s.apiUrls || {})
           }));
         }
       } catch (e) {
         console.warn('Failed to load settings:', e);
-      }finally {
-      setLoadingSettings(false);
-    }
+      } finally {
+        setLoadingSettings(false);
+      }
     })();
   }, []);
 
   // ---------- persist settings ----------
   useEffect(() => {
-    if (!loadingSettings) { // PATCH: only save after load
+    if (!loadingSettings) {
       AsyncStorage.setItem('appSettings', JSON.stringify({
-        language, formality, darkMode, notificationsEnabled, apiUrls
+        language, formality, darkMode, apiUrls
       }));
     }
-  }, [language, formality, darkMode, notificationsEnabled, apiUrls, loadingSettings]);
-
-  // ---------- notifications ----------
-  useEffect(() => {
-    (async () => {
-      if (!notificationsEnabled) return;
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission denied for notifications.');
-        setNotificationsEnabled(false);
-      }
-    })();
-  }, [notificationsEnabled]);
+  }, [language, formality, darkMode, apiUrls, loadingSettings]);
 
   // ---------- DB helpers ----------
-  const db = useSQLiteContext();
-  const dbPath = db.databasePath;
+  const database = useSQLiteContext();
+  const dbPath = database.databasePath;
 
   const dbFile = new File(dbPath);
   const backupFile = new File(dbPath.replace("app.db", "app_backup.db"));
@@ -116,10 +102,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const saveDB = async () => {
     try {
       const info = await dbFile.info();
-      if (!info.exists) {
-        Alert.alert("No database found");
-        return;
-      }
+      if (!info.exists) return Alert.alert("No database found");
       await dbFile.copy(backupFile);
       Alert.alert("Database saved!");
     } catch (e) {
@@ -130,10 +113,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const restoreDB = async () => {
     try {
       const info = await backupFile.info();
-      if (!info.exists) {
-        Alert.alert("No backup found");
-        return;
-      }
+      if (!info.exists) return Alert.alert("No backup found");
       await backupFile.copy(dbFile);
       Alert.alert("Database restored!");
     } catch (e) {
@@ -150,26 +130,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ---------- DB size check ----------
-  const checkDbSize = async () => {
-    try {
-      const info = await dbFile.info();
-      if (info.exists && info.size) {
-        setDbSize(info.size / (1024 * 1024));
-      } else {
-        setDbSize(0);
-      }
-    } catch (e) {
-      console.warn("Failed to check DB size:", e);
-    }
-  };
-
-  useEffect(() => {
-    checkDbSize();
-    const interval = setInterval(checkDbSize, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
   if (loadingSettings) return null;
 
   return (
@@ -177,7 +137,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       language, setLanguage,
       formality, setFormality,
       darkMode, setDarkMode,
-      notificationsEnabled, setNotificationsEnabled,
       apiUrls, setApiUrls,
       theme,
       saveDB, restoreDB, clearDB,
@@ -187,3 +146,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     </SettingsContext.Provider>
   );
 }
+
+
+export default SettingsProvider;
+
+export { SettingsContext, useSettings };
+

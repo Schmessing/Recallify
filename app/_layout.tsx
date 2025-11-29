@@ -1,19 +1,11 @@
 import { Stack } from 'expo-router';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
-import { SettingsProvider } from '../constants/settingsProvider';
+import SettingsProvider from '../constants/settingsProvider';
 
 export default function RootLayout() {
-  return (
-    <SQLiteProvider databaseName="app.db" onInit={migrateDbIfNeeded}>
-      <SettingsProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </SettingsProvider>
-    </SQLiteProvider>
-  );
-}
-
-async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  await db.execAsync(`
+  const createDbIfNeeded = async (db: SQLiteDatabase) => {
+  await db.execAsync(
+    `
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS subjects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
     CREATE TABLE IF NOT EXISTS topics (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, subject_id INTEGER);
@@ -27,3 +19,14 @@ async function migrateDbIfNeeded(db: SQLiteDatabase) {
     CREATE TABLE IF NOT EXISTS quiz_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, questions_id INTEGER, quiz_id INTEGER);
   `);
 }
+
+  return (
+    <SQLiteProvider databaseName="app.db" onInit={createDbIfNeeded}>
+      <SettingsProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </SettingsProvider>
+    </SQLiteProvider>
+  );
+}
+
+

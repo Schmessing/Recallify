@@ -28,7 +28,6 @@ export default function SettingsScreen() {
     language, setLanguage,
     formality, setFormality,
     darkMode, setDarkMode,
-    notificationsEnabled, setNotificationsEnabled,
     apiUrls, setApiUrls, theme,
     saveDB, restoreDB, clearDB
   } = useSettings();
@@ -41,7 +40,7 @@ export default function SettingsScreen() {
         <Switch value={darkMode} onValueChange={setDarkMode} />
       </View>
 
-      {/* Language + Formality + Notifications */}
+      {/* Language + Formality */}
       <Text style={[styles.section, { color: theme.text }]}>Language</Text>
       <TextInput
         value={language}
@@ -60,11 +59,6 @@ export default function SettingsScreen() {
         placeholder="3"
         placeholderTextColor={theme.text + '88'}
       />
-
-      <View style={styles.row}>
-        <Text style={[styles.section, { color: theme.text }]}>Notifications</Text>
-        <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} />
-      </View>
 
       {/* API settings */}
       <Text style={[styles.header, { color: theme.text }]}>API Settings</Text>
