@@ -2,14 +2,25 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  ScrollView, StyleSheet,
+  ScrollView,
+  StyleSheet,
   Switch,
-  Text, TextInput,
+  Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSettings } from '../constants/settingsProvider';
 import { FontSizes, Spacing } from '../constants/theme';
-import { useSettings } from './settingsProvider';
+
+// Define type for API URLs
+interface ApiUrls {
+  ocrUrl: string;
+  ocrKey: string;
+  googletranscriptUrl: string;
+  googletranscriptKey: string;
+  geminiKey: string;
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -17,7 +28,6 @@ export default function SettingsScreen() {
     language, setLanguage,
     formality, setFormality,
     darkMode, setDarkMode,
-    notificationsEnabled, setNotificationsEnabled,
     apiUrls, setApiUrls, theme,
     saveDB, restoreDB, clearDB
   } = useSettings();
@@ -30,7 +40,7 @@ export default function SettingsScreen() {
         <Switch value={darkMode} onValueChange={setDarkMode} />
       </View>
 
-      {/* Language + Formality + Notifications */}
+      {/* Language + Formality */}
       <Text style={[styles.section, { color: theme.text }]}>Language</Text>
       <TextInput
         value={language}
@@ -50,26 +60,22 @@ export default function SettingsScreen() {
         placeholderTextColor={theme.text + '88'}
       />
 
-      <View style={styles.row}>
-        <Text style={[styles.section, { color: theme.text }]}>Notifications</Text>
-        <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} />
-      </View>
-
       {/* API settings */}
       <Text style={[styles.header, { color: theme.text }]}>API Settings</Text>
       {([
         ['ocrUrl', 'OCR URL'],
         ['ocrKey', 'OCR Key'],
-        ['whisperUrl', 'Whisper URL'],
-        ['whisperKey', 'Whisper Key'],
-        ['geminiUrl', 'Gemini URL'],
+        ['googletranscriptUrl', 'Google Transcription URL'],
+        ['googletranscriptKey', 'Google Transcription Key'],
         ['geminiKey', 'Gemini Key'],
       ] as const).map(([key, label]) => (
         <View key={key} style={{ marginBottom: Spacing.sm }}>
           <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
           <TextInput
             value={apiUrls[key]}
-            onChangeText={(v) => setApiUrls({ [key]: v } as any)}
+            onChangeText={(v) =>
+              setApiUrls(prev => ({ ...prev, [key]: v } as ApiUrls))
+            }
             autoCapitalize="none"
             style={[styles.input, { borderColor: theme.teal, color: theme.text }]}
             placeholder={label}
@@ -90,7 +96,10 @@ export default function SettingsScreen() {
         <Text style={[styles.btnText, { color: theme.teal }]}>Clear DB</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btn, { backgroundColor: theme.teal, marginTop: Spacing.lg }]} onPress={() => router.push('/home')}>
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: theme.teal, marginTop: Spacing.lg }]}
+        onPress={() => router.push('/home')}
+      >
         <Text style={styles.btnText}>Back to Home</Text>
       </TouchableOpacity>
     </ScrollView>
