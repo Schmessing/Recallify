@@ -2,8 +2,8 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSettings } from '../constants/settingsProvider';
 import { Colors, Spacing } from '../constants/theme';
-import { useSettings } from './settingsProvider';
 
 export default function HomeScreen() {
   const router = useRouter();
