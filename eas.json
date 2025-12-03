@@ -1,0 +1,21 @@
+{
+  "build": {
+    "test0": {
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "test1": {
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "test2": {
+      "developmentClient": true
+    },
+    "test3": {
+      "distribution": "internal"
+    },
+    "production": {}
+  }
+}

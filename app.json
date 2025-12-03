@@ -13,12 +13,24 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.recallify.recallify"
     },
-    "web": { "favicon": "./assets/images/favicon.png" },
-    "plugins": ["expo-router", "expo-sqlite"],
-    "scheme": "recallify"
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite"
+    ],
+    "scheme": "recallify",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "140050ff-0e32-48b5-ae69-5c9b3cf59d35"
+      }
+    }
   }
 }
