@@ -185,9 +185,17 @@ export default function ImportScreen() {
         console.log("Sending content to Gemini API for Q&A generation...");
         const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
 
+        // NOTE: Requesting 1 flashcard and 1 quiz question to simplify the logic.
+        // A more advanced prompt could request multiple.
+        const prompt = `From the following content, generate exactly one question and its corresponding answer.
+Return the result in two lines: Question\nAnswer
+
+Content:
+${text}`;
+
         const output = await genAI.models.generateContent({
           model: "gemini-2.5-flash",
-          contents: [{ parts: [{ text: `Generate one question and its answer for this content:\n${text}` }] }],
+          contents: [{ parts: [{ text: prompt }] }],
         });
 
         const generated = output?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
@@ -195,41 +203,88 @@ export default function ImportScreen() {
 
         const [q, a] = generated.split("\n");
 
-        // ========================================
-        // SAVE TO DB
-        // ========================================
-        const createdAt = new Date().toISOString();
-        const topicId = 1;
+        // Use a transaction for atomic DB operations
+        await db.withTransactionAsync(async () => {
+          // ========================================
+          // SAVE TO DB: DATA & QUESTIONS
+          // ========================================
+          const createdAt = new Date().toISOString();
+          const topicId = 1; // Assuming a default topic exists
 
-        const stmt = await db.prepareAsync(
-          `INSERT INTO data (name, size, body, topic_id, created_at) 
-          VALUES ($name, $size, $body, $topicId, $createdAt)`
-        );
+          const dataInsertStmt = await db.prepareAsync(
+            `INSERT INTO data (name, size, body, topic_id, created_at) 
+             VALUES ($name, $size, $body, $topicId, $createdAt)`
+          );
 
-        const res = await stmt.executeAsync({
-          $name: asset.name,
-          $size: text.length,
-          $body: text,
-          $topicId: topicId,
-          $createdAt: createdAt
-        });
+          const dataRes = await dataInsertStmt.executeAsync({
+            $name: asset.name,
+            $size: text.length,
+            $body: text,
+            $topicId: topicId,
+            $createdAt: createdAt
+          });
+          await dataInsertStmt.finalizeAsync();
 
-        await stmt.finalizeAsync();
+          const dataId = dataRes.lastInsertRowId;
 
-        const dataId = res.lastInsertRowId;
+          const questionInsertRes = await db.runAsync(
+            `INSERT INTO questions (data_id, question, answer) 
+             VALUES (?, ?, ?)`,
+            dataId,
+            q || "Generated question",
+            a || "Generated answer"
+          );
 
-        await db.runAsync(
-          `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
-          dataId,
-          q || "Generated question",
-          a || "Generated answer"
-        );
+          const questionId = questionInsertRes.lastInsertRowId;
+          console.log(`Data saved (ID: ${dataId}), Question saved (ID: ${questionId})`);
 
-        console.log("Q&A saved to database successfully!");
+          // ========================================
+          // CREATE FLASHCARD SET
+          // ========================================
+          const flashcardSetTitle = `Flashcards from ${asset.name}`;
+          const flashcardInsertRes = await db.runAsync(
+            `INSERT INTO flashcard_set (title, created_at) VALUES (?, ?)`,
+            flashcardSetTitle,
+            createdAt
+          );
+
+          const flashcardSetId = flashcardInsertRes.lastInsertRowId;
+
+          // Link question to flashcard set
+          await db.runAsync(
+            `INSERT INTO flashcard_set_questions (question_id, flashcard_set_id) VALUES (?, ?)`,
+            questionId,
+            flashcardSetId
+          );
+          console.log(`Flashcard Set saved (ID: ${flashcardSetId})`);
+
+
+          // ========================================
+          // CREATE QUIZ
+          // ========================================
+          const quizTitle = `Quiz from ${asset.name}`;
+          const quizInsertRes = await db.runAsync(
+            `INSERT INTO quizzes (title, created_at) VALUES (?, ?)`,
+            quizTitle,
+            createdAt
+          );
+
+          const quizId = quizInsertRes.lastInsertRowId;
+
+          // Link question to quiz
+          await db.runAsync(
+            `INSERT INTO quiz_questions (questions_id, quiz_id) VALUES (?, ?)`,
+            questionId,
+            quizId
+          );
+          console.log(`Quiz saved (ID: ${quizId})`);
+          
+          console.log("Q&A, Flashcard, and Quiz saved to database successfully!");
+        }); // End of transaction
       } 
       catch (err) {
-        console.error("Gemini Q&A API call failed:", err);
-        Alert.alert("Error generating question & answer", String(err));
+        console.error("Gemini Q&A/DB save failed:", err);
+        Alert.alert("Error generating or saving content", String(err));
       }
     } 
     catch (err) {
@@ -241,6 +296,7 @@ export default function ImportScreen() {
     }
   }; // <-- closes handleImport
 
+  // ... (rest of the component remains the same)
   return (
     <View style={{ flex: 1, padding: Spacing.lg, backgroundColor: theme.background }}>
       <Text style={{ fontSize: 26, fontWeight: "800", color: theme.text, marginBottom: Spacing.md }}>
@@ -279,4 +335,4 @@ export default function ImportScreen() {
       {loading && <ActivityIndicator size="large" style={{ marginTop: Spacing.lg }} />}
     </View>
   );
-} 
+}
