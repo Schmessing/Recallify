@@ -179,16 +179,24 @@ export default function ImportScreen() {
       }
 
       // ========================================
-      // GENERATE QUESTION & ANSWER
+      // GENERATE QUESTION & ANSWER (MULTIPLE)
       // ========================================
       try {
         console.log("Sending content to Gemini API for Q&A generation...");
         const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
 
-        // NOTE: Requesting 1 flashcard and 1 quiz question to simplify the logic.
-        // A more advanced prompt could request multiple.
-        const prompt = `From the following content, generate exactly one question and its corresponding answer.
-Return the result in two lines: Question\nAnswer
+        // Request multiple Q/A pairs in JSON format for easier parsing and iteration.
+        const prompt = `From the following content, generate exactly five questions and their corresponding answers. Return the result as a JSON array of objects, where each object has 'question' and 'answer' keys.
+        
+        CRITICAL RULE: The questions and answers MUST be based solely on the factual information present in the CONTENT section below. DO NOT ask about the file format, the extraction process, or the base64 encoding. If the content is empty, return an empty JSON array [].
+
+        Do not include any text before or after the JSON array.
+
+Example format:
+[
+  {"question": "Q1", "answer": "A1"},
+  {"question": "Q2", "answer": "A2"}
+]
 
 Content:
 ${text}`;
@@ -197,20 +205,32 @@ ${text}`;
           model: "gemini-2.5-flash",
           contents: [{ parts: [{ text: prompt }] }],
         });
+// ... (rest of the file is the same)
 
-        const generated = output?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-        console.log("Received generated Q&A:", generated);
 
-        const [q, a] = generated.split("\n");
+        const generatedText = output?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+        console.log("Received generated JSON:", generatedText);
+
+        let qaPairs = [];
+        try {
+          // Parse the generated JSON string into an array of objects
+          qaPairs = JSON.parse(generatedText);
+          if (!Array.isArray(qaPairs) || qaPairs.length === 0) {
+            throw new Error("Parsed JSON is not a valid, non-empty array.");
+          }
+        } catch (error) {
+          console.error("Failed to parse generated Q&A JSON:", error);
+          Alert.alert("Error", "Failed to parse AI response. Using a default single entry.");
+          // Fallback if parsing fails, use a default single pair
+          qaPairs = [{ question: "Generation failed to parse", answer: "Check console logs" }];
+        }
 
         // Use a transaction for atomic DB operations
         await db.withTransactionAsync(async () => {
-          // ========================================
-          // SAVE TO DB: DATA & QUESTIONS
-          // ========================================
           const createdAt = new Date().toISOString();
           const topicId = 1; // Assuming a default topic exists
 
+          // 1. Insert the main 'data' record once
           const dataInsertStmt = await db.prepareAsync(
             `INSERT INTO data (name, size, body, topic_id, created_at) 
              VALUES ($name, $size, $body, $topicId, $createdAt)`
@@ -226,60 +246,60 @@ ${text}`;
           await dataInsertStmt.finalizeAsync();
 
           const dataId = dataRes.lastInsertRowId;
+          console.log(`Data saved (ID: ${dataId})`);
 
-          const questionInsertRes = await db.runAsync(
-            `INSERT INTO questions (data_id, question, answer) 
-             VALUES (?, ?, ?)`,
-            dataId,
-            q || "Generated question",
-            a || "Generated answer"
-          );
 
-          const questionId = questionInsertRes.lastInsertRowId;
-          console.log(`Data saved (ID: ${dataId}), Question saved (ID: ${questionId})`);
-
-          // ========================================
-          // CREATE FLASHCARD SET
-          // ========================================
+          // 2. Create the Flashcard Set and Quiz set once
           const flashcardSetTitle = `Flashcards from ${asset.name}`;
           const flashcardInsertRes = await db.runAsync(
             `INSERT INTO flashcard_set (title, created_at) VALUES (?, ?)`,
             flashcardSetTitle,
             createdAt
           );
-
           const flashcardSetId = flashcardInsertRes.lastInsertRowId;
-
-          // Link question to flashcard set
-          await db.runAsync(
-            `INSERT INTO flashcard_set_questions (question_id, flashcard_set_id) VALUES (?, ?)`,
-            questionId,
-            flashcardSetId
-          );
           console.log(`Flashcard Set saved (ID: ${flashcardSetId})`);
 
 
-          // ========================================
-          // CREATE QUIZ
-          // ========================================
           const quizTitle = `Quiz from ${asset.name}`;
           const quizInsertRes = await db.runAsync(
             `INSERT INTO quizzes (title, created_at) VALUES (?, ?)`,
             quizTitle,
             createdAt
           );
-
           const quizId = quizInsertRes.lastInsertRowId;
-
-          // Link question to quiz
-          await db.runAsync(
-            `INSERT INTO quiz_questions (questions_id, quiz_id) VALUES (?, ?)`,
-            questionId,
-            quizId
-          );
           console.log(`Quiz saved (ID: ${quizId})`);
+
+
+          // 3. Iterate over the Q/A pairs to insert into 'questions' and link them
+          for (const pair of qaPairs) {
+            // Insert question into 'questions' table
+            const questionInsertRes = await db.runAsync(
+              `INSERT INTO questions (data_id, question, answer) 
+               VALUES (?, ?, ?)`,
+              dataId,
+              pair.question || "Generated question",
+              pair.answer || "Generated answer"
+            );
+
+            const questionId = questionInsertRes.lastInsertRowId;
+            
+            // Link question to flashcard set
+            await db.runAsync(
+              `INSERT INTO flashcard_set_questions (question_id, flashcard_set_id) VALUES (?, ?)`,
+              questionId,
+              flashcardSetId
+            );
+
+            // Link question to quiz
+            await db.runAsync(
+              `INSERT INTO quiz_questions (questions_id, quiz_id) VALUES (?, ?)`,
+              questionId,
+              quizId
+            );
+            // console.log(`Question ID ${questionId} linked to set ${flashcardSetId} and quiz ${quizId}`);
+          }
           
-          console.log("Q&A, Flashcard, and Quiz saved to database successfully!");
+          console.log(`${qaPairs.length} Q&A pairs, Flashcard set, and Quiz saved to database successfully!`);
         }); // End of transaction
       } 
       catch (err) {
@@ -290,7 +310,8 @@ ${text}`;
     catch (err) {
       console.error("Import failed:", err);
       Alert.alert("Error", String(err));
-    } 
+    }
+
     finally {
       setLoading(false);
     }

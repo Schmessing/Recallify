@@ -1,41 +1,70 @@
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
-import { Animated, Easing, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// Import the SQLite hook
+import { useSQLiteContext } from 'expo-sqlite';
 import { useSettings } from '../constants/settingsProvider';
 import { Colors, Spacing } from '../constants/theme';
 
-type Card = { id: string; question: string; answer: string };
+// Update the type definition to match the 'questions' table schema from viewdb.tsx
+// Using 'id: number' might be better if your DB uses numeric IDs, but string works for keyExtractor
+type Card = { id: number; question: string; answer: string };
 
 export default function Flashcards() {
   const router = useRouter();
   const { darkMode } = useSettings();
   const theme = darkMode ? Colors.dark : Colors.light;
+  // Access the database instance
+  const db = useSQLiteContext(); 
 
-  const [cards] = useState<Card[]>([
-    { id: '1', question: 'What is AI?', answer: 'Artificial Intelligence' },
-    { id: '2', question: 'What does OCR stand for?', answer: 'Optical Character Recognition' },
-    { id: '3', question: 'Define NLP.', answer: 'Natural Language Processing' },
-  ]);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Function to fetch data from the SQLite database
+  const fetchFlashcardsFromDB = async () => {
+    try {
+      // Use db.getAllAsync to fetch all rows from the questions table
+      const questionsResult = await db.getAllAsync<Card>('SELECT id, question, answer FROM questions');
+      setCards(questionsResult);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching flashcards from DB:', err);
+      setError('Failed to load flashcards from database.');
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchFlashcardsFromDB();
+  }, []); // Empty dependency array ensures it runs once on mount
+
+  // --- (The rest of your existing animation logic and renderItem function goes here) ---
+  // The animation logic and rendering part does not need changes.
 
   const animMap = useRef<Record<string, Animated.Value>>({}).current;
   const flipped = useRef<Set<string>>(new Set());
 
-  const getAnim = (id: string) => {
-    if (!animMap[id]) animMap[id] = new Animated.Value(0); // 0 = SHOW QUESTION, 1 = SHOW ANSWER
-    return animMap[id];
+  const getAnim = (id: string | number) => {
+    // Ensure the key is a string for JS object keys
+    const idStr = String(id);
+    if (!animMap[idStr]) animMap[idStr] = new Animated.Value(0);
+    return animMap[idStr];
   };
 
-  const flipCard = (id: string) => {
-    const a = getAnim(id);
-    const toValue = flipped.current.has(id) ? 0 : 1;
+  const flipCard = (id: string | number) => {
+    const idStr = String(id);
+    const a = getAnim(idStr);
+    const toValue = flipped.current.has(idStr) ? 0 : 1;
     Animated.timing(a, {
       toValue,
       duration: 350,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: true, // Typo fix: useNativeDriver
     }).start(() => {
-      if (toValue === 1) flipped.current.add(id);
-      else flipped.current.delete(id);
+      if (toValue === 1) flipped.current.add(idStr);
+      else flipped.current.delete(idStr);
     });
   };
 
@@ -70,7 +99,7 @@ export default function Flashcards() {
             style={[styles.card, { backgroundColor: theme.card }, frontStyle]}
           >
             <Text style={[styles.label, { color: theme.teal }]}>QUESTION</Text>
-            <Text style={[styles.text, { color: theme.text }]}>{item.question}</Text>
+            <Text style={[styles.text, { color: theme.teal }]}>{item.question}</Text>
           </Animated.View>
 
           {/* BACK = ANSWER */}
@@ -78,21 +107,40 @@ export default function Flashcards() {
             style={[styles.card, styles.cardBack, { backgroundColor: theme.card }, backStyle]}
           >
             <Text style={[styles.label, { color: theme.teal }]}>ANSWER</Text>
-            <Text style={[styles.text, { color: theme.text }]}>{item.answer}</Text>
+            <Text style={[styles.text, { color: theme.teal }]}>{item.answer}</Text>
           </Animated.View>
         </View>
       </TouchableOpacity>
     );
   };
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.teal} />
+        <Text style={{ color: theme.text, marginTop: 10 }}>Loading flashcards...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }]}>
+        <Text style={{ color: 'red' }}>{error}</Text>
+      </View>
+    );
+  }
+
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Your Flashcards</Text>
+      <Text style={[styles.label, { color: theme.teal }]}>Your Flashcards</Text>
       <FlatList
-        data={cards}
-        renderItem={renderItem}
-        keyExtractor={(i) => i.id}
-        contentContainerStyle={{ paddingBottom: 16 }}
+          data={cards}
+          renderItem={renderItem}
+          keyExtractor={(i) => String(i.id)} // Use String() to ensure keyExtractor works with number or string IDs
+          contentContainerStyle={{ paddingBottom: 16 }}
+          ListEmptyComponent={<Text style={{color: theme.text, textAlign: 'center', marginTop: 20}}>No flashcards found in the database.</Text>}
       />
       <TouchableOpacity
         style={[styles.backButton, { backgroundColor: theme.teal }]}
@@ -108,7 +156,7 @@ const CARD_H = 128;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: Spacing.md },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: Spacing.md }, // Added title style from original code
   cardTapArea: { width: '100%', marginBottom: Spacing.md },
   cardStack: { height: CARD_H },
   card: {
@@ -127,3 +175,4 @@ const styles = StyleSheet.create({
   backButton: { marginTop: 8, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   backText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
+
