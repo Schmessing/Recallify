@@ -22,7 +22,7 @@ export default function HomeScreen() {
       <Text style={[styles.header, { color: theme.text }]}>Home</Text>
       <View style={{ width: '100%', gap: Spacing.md }}>
         <Card title="Import Data" body="Upload and process your files." onPress={() => router.push('/import')} />
-        <Card title="View Datasets" body="Explore and manage imported datasets." onPress={() => {}} />
+        <Card title="View Datasets" body="Explore and manage imported datasets." onPress={() => router.push('/viewdb')} />
         <Card title="View Generated Flashcards" body="Study and review your AI-generated flashcards." onPress={() => router.push('/flashcards')} />
         <Card title="Settings" body="Customize your preferences." onPress={() => router.push('/settings')} />
       </View>
