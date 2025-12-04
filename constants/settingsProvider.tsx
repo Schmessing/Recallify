@@ -12,6 +12,7 @@ import { Colors } from './theme';
 // ---------- types ----------
 type ApiUrls = {
   ocrUrl: string; ocrKey: string;
+  assemblyAIKey: string;
   googletranscriptUrl: string; googletranscriptKey: string;
   geminiKey: string;
 };
@@ -42,7 +43,8 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
   const defaultApiUrls: ApiUrls = {
     ocrUrl: 'https://api.ocr.space/parse/image',
     ocrKey: 'K84996160788957',
-    googletranscriptUrl: 'https://speech.googleapis.com',
+    assemblyAIKey: '9d5f8494428f49b6aabedf950ad49d21',
+    googletranscriptUrl: 'https://speech.googleapis.com/v1/speech:recognize',
     googletranscriptKey: 'AIzaSyBz3uzo8P4eH6tw2ZEPHqtfZVv3IJkgPi8',
     geminiKey: 'AIzaSyA3tBRyfZuYH33JJVmJleoRkiBR1u5Q3gQ',
   };

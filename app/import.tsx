@@ -167,42 +167,97 @@ export default function ImportScreen() {
 
 
       // ========================================
-      // AUDIO/VIDEO → SPEECH TO TEXT
+      // AUDIO/VIDEO → SPEECH TO TEXT (using AssemblyAI)
       // ========================================
       else if (mime.startsWith("audio/") || mime.startsWith("video/")) {
-        const arrayBuffer = await file.arrayBuffer();
-        const base64 = arrayBufferToBase64(arrayBuffer);
+        console.log("Uploading audio/video file to AssemblyAI...");
+        const API_KEY = apiUrls.assemblyAIKey; // Make sure you have this key in your settings
+        const uploadUrl = "https://api.assemblyai.com/v2/upload";
 
-        const resp = await fetch(apiUrls.googletranscriptUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiUrls.googletranscriptKey}`
-          },
-          body: JSON.stringify({
-            prompt: `Transcribe this ${mime} file (base64).`
-          })
+        // 1. Convert file URI to a Blob for reliable upload via fetch in React Native
+        const fileUri = asset.uri;
+        const fileData = await fetch(fileUri);
+        const blob = await fileData.blob();
+        
+        // 2. Upload the file binary data directly to AssemblyAI's upload endpoint
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'authorization': API_KEY, // Auth header is standard for all AA calls
+                'Content-Type': mime, // Use the detected mime type
+            },
+            body: blob,
         });
 
-        if (!resp.ok) {
-          // If response status is not 2xx, read the body as text to see the error message
-          const errorBody = await resp.text();
-          console.error("Transcription API failed with status:", resp.status);
-          console.error("Server response body:", errorBody);
-          Alert.alert("API Error", `Transcription request failed. Status: ${resp.status}`);
-          setLoading(false); // Stop loading indicator
-          return; // Exit the function early
+        if (!uploadResponse.ok) {
+            const errorBody = await uploadResponse.text();
+            console.error("AssemblyAI Upload failed:", errorBody);
+            Alert.alert("Upload Error", `Upload failed. Details: ${errorBody}`);
+            setLoading(false);
+            return;
         }
 
-        // Only proceed to parse as JSON if the response status was OK (2xx)
-        const data = await resp.json();
-        text = data?.text ?? "";
-      }
+        const uploadData = await uploadResponse.json();
+        const audioUrl = uploadData.upload_url;
+        console.log("File uploaded successfully. Audio URL:", audioUrl);
 
-      else {
-        Alert.alert("Unsupported file type");
-        return;
-      }
+        // 3. Submit the uploaded URL for transcription
+        const transcriptUrl = "https://api.assemblyai.com/v2/transcript";
+        const transcriptResponse = await fetch(transcriptUrl, {
+            method: 'POST',
+            headers: {
+                'authorization': API_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                audio_url: audioUrl, // Use the URL returned from the upload step
+                // Optional config parameters can be added here, e.g.,
+                // speaker_labels: true,
+                // language_detection: true,
+            }),
+        });
+
+        if (!transcriptResponse.ok) {
+            const errorBody = await transcriptResponse.text();
+            console.error("AssemblyAI Transcription submission failed:", errorBody);
+            Alert.alert("Transcription Error", `Submission failed. Details: ${errorBody}`);
+            setLoading(false);
+            return;
+        }
+
+        const transcriptData = await transcriptResponse.json();
+        const transcriptId = transcriptData.id;
+        console.log("Transcription job submitted with ID:", transcriptId);
+
+        // 4. Poll for the transcription result (AssemblyAI handles this asynchronously)
+        let status = transcriptData.status;
+        while (status !== 'completed' && status !== 'error') {
+            console.log(`Polling transcript status: ${status}...`);
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+            
+            const pollingUrl = `${transcriptUrl}/${transcriptId}`;
+            const pollingResponse = await fetch(pollingUrl, {
+                method: 'GET',
+                headers: {
+                    'authorization': API_KEY,
+                },
+            });
+
+            const pollingData = await pollingResponse.json();
+            status = pollingData.status;
+
+            if (status === 'completed') {
+                text = pollingData.text ?? "";
+                console.log("Transcription complete.");
+            } else if (status === 'error') {
+                console.error("Transcription failed:", pollingData.error);
+                Alert.alert("Transcription Failed", `Error: ${pollingData.error}`);
+                setLoading(false);
+                return;
+            }
+        }
+      }            
+
 
       // ========================================
       // GENERATE QUESTION & ANSWER (MULTIPLE)

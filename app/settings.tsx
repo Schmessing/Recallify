@@ -63,10 +63,7 @@ export default function SettingsScreen() {
       {/* API settings */}
       <Text style={[styles.header, { color: theme.text }]}>API Settings</Text>
       {([
-        ['ocrUrl', 'OCR URL'],
-        ['ocrKey', 'OCR Key'],
-        ['googletranscriptUrl', 'Google Transcription URL'],
-        ['googletranscriptKey', 'Google Transcription Key'],
+        ['assemblyAIKey', 'AssemblyAI Key'],
         ['geminiKey', 'Gemini Key'],
       ] as const).map(([key, label]) => (
         <View key={key} style={{ marginBottom: Spacing.sm }}>
@@ -85,7 +82,7 @@ export default function SettingsScreen() {
       ))}
 
       {/* DB buttons */}
-      <Text style={[styles.header, { color: theme.text, marginTop: Spacing.lg }]}>Database</Text>
+      {/* <Text style={[styles.header, { color: theme.text, marginTop: Spacing.lg }]}>Database</Text>
       <TouchableOpacity style={[styles.btn, { backgroundColor: theme.teal }]} onPress={saveDB}>
         <Text style={styles.btnText}>Save DB</Text>
       </TouchableOpacity>
@@ -94,7 +91,7 @@ export default function SettingsScreen() {
       </TouchableOpacity>
       <TouchableOpacity style={[styles.btnOutline, { borderColor: theme.teal }]} onPress={clearDB}>
         <Text style={[styles.btnText, { color: theme.teal }]}>Clear DB</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: theme.teal, marginTop: Spacing.lg }]}
