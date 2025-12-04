@@ -129,27 +129,42 @@ export default function ImportScreen() {
         text = output?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
       }
 
-      // ========================================
-      // IMAGES → OCR
+            // ========================================
+      // IMAGES → OCR using GEMINI
       // ========================================
       else if (mime.startsWith("image/")) {
+        console.log("Processing image with Gemini Vision API...");
         const arrayBuffer = await file.arrayBuffer();
         const base64 = arrayBufferToBase64(arrayBuffer);
+        
+        // Define the parts for the Gemini API call: a prompt and the image data
+        const promptText = "Extract all readable text from this image. Return only the text extracted, with minimal formatting.";
 
-        const resp = await fetch(apiUrls.ocrUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiUrls.ocrKey}`
-          },
-          body: JSON.stringify({
-            prompt: `Extract readable text from this image (base64). Return only text:\n${base64}`
-          })
+        const imagePart = {
+            inlineData: {
+                data: base64,
+                mimeType: mime, // Use the detected mime type (e.g., image/jpeg, image/png)
+            },
+        };
+
+        // Ensure you have initialized GoogleGenAI correctly at the start of handleImport or globally
+        // const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey }); 
+        const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
+
+        // Use a vision-capable model like gemini-2.5-flash which supports images
+        const output = await genAI.models.generateContent({
+            model: "gemini-2.5-flash", 
+            contents: [
+                { parts: [{ text: promptText }, imagePart] }
+            ],
+            // Optional: You can add configuration options here if needed, 
+            // but the default should work for simple text extraction.
         });
 
-        const data = await resp.json();
-        text = data?.text ?? "";
+        text = output?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+        console.log("Text extracted by Gemini Vision (Length:", text.length, "):", text.slice(0, 100));
       }
+
 
       // ========================================
       // AUDIO/VIDEO → SPEECH TO TEXT
@@ -169,6 +184,17 @@ export default function ImportScreen() {
           })
         });
 
+        if (!resp.ok) {
+          // If response status is not 2xx, read the body as text to see the error message
+          const errorBody = await resp.text();
+          console.error("Transcription API failed with status:", resp.status);
+          console.error("Server response body:", errorBody);
+          Alert.alert("API Error", `Transcription request failed. Status: ${resp.status}`);
+          setLoading(false); // Stop loading indicator
+          return; // Exit the function early
+        }
+
+        // Only proceed to parse as JSON if the response status was OK (2xx)
         const data = await resp.json();
         text = data?.text ?? "";
       }
