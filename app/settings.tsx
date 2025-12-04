@@ -63,10 +63,7 @@ export default function SettingsScreen() {
       {/* API settings */}
       <Text style={[styles.header, { color: theme.text }]}>API Settings</Text>
       {([
-        ['ocrUrl', 'OCR URL'],
-        ['ocrKey', 'OCR Key'],
-        ['googletranscriptUrl', 'Google Transcription URL'],
-        ['googletranscriptKey', 'Google Transcription Key'],
+        ['assemblyAIKey', 'AssemblyAI Key'],
         ['geminiKey', 'Gemini Key'],
       ] as const).map(([key, label]) => (
         <View key={key} style={{ marginBottom: Spacing.sm }}>
