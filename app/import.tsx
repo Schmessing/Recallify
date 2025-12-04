@@ -187,7 +187,10 @@ export default function ImportScreen() {
 
         // Request multiple Q/A pairs in JSON format for easier parsing and iteration.
         const prompt = `From the following content, generate exactly five questions and their corresponding answers. Return the result as a JSON array of objects, where each object has 'question' and 'answer' keys.
-Do not include any text before or after the JSON.
+        
+        CRITICAL RULE: The questions and answers MUST be based solely on the factual information present in the CONTENT section below. DO NOT ask about the file format, the extraction process, or the base64 encoding. If the content is empty, return an empty JSON array [].
+
+        Do not include any text before or after the JSON array.
 
 Example format:
 [
@@ -202,6 +205,8 @@ ${text}`;
           model: "gemini-2.5-flash",
           contents: [{ parts: [{ text: prompt }] }],
         });
+// ... (rest of the file is the same)
+
 
         const generatedText = output?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
         console.log("Received generated JSON:", generatedText);
