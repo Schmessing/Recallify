@@ -4,7 +4,21 @@ Welcome to the **Recallify Mobile App**, built with [Expo](https://expo.dev/) an
 
 ---
 
-## 🚀 How to install a prebuilt version of the app (Android)
+## 🚀 Getting started
+
+### Step 1: Install the app
+Scroll down for more instructions on how to get the app on your device.
+
+### Step 2: Get API keys 
+To use Recallify, you will have to supply API keys for [Gemini](https://ai.google.dev/gemini-api/docs/api-key) and [AssemblyAI](https://www.assemblyai.com/docs/faq/how-to-get-your-api-key). Follow the official steps recommended by Google and AssemblyAI to set up your respective accounts.
+
+### Step 3: Enter your API keys on the Settings page of the app.
+<img width="492" height="880" alt="Screenshot 2025-12-04 161428" src="https://github.com/user-attachments/assets/45ef1c8f-b26d-4682-b61e-d4a2fd8f603e" />
+
+### Step 4: Enjoy!
+Note: if you are using free versions of Gemini and AssemblyAI, you may be rate limited. Refer to the official Gemini and AssemblyAI documentation for more information.
+
+## 📦 How to install a prebuilt version of the app (Android)
 
 Getting Recallify onto on your phone is simple. 
 
@@ -13,7 +27,7 @@ Getting Recallify onto on your phone is simple.
 ### Step 2: Tap on the .apk to begin installation
 You may need to change permissions on your phone to allow installing .apk files from outside the Play Store; follow [this article](https://www.lifewire.com/install-apk-on-android-4177185) if you get stuck.
 
-### Step 3: Enjoy!
+### Step 3: Refer to the Getting started section of this README to set up the app.
 
 ---
 
@@ -44,6 +58,9 @@ eas build --platform android
 ### Step 4: Install the built executeable directly on your device or an emulator and enjoy!
 
 ---
+
+
+
 
 ### Team Workflow (for editing and testing)
 **1. Make changes and push**
