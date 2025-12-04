@@ -27,22 +27,14 @@ git clone https://github.com/Schmessing/Recallify.git
 cd Recallify
 ```
 
-### Step 2: Install dependencies
-
-In the same folder, run:
-```bash
-npm install
-```
-This installs all the dependencies needed to run Recallify.
-
-### Step 3: Build the app
+### Step 2: Build the app
 
 Use EAS to build the app yourself. For example, to build the app for an Android target, you would run the following command in your terminal while in the Recallify project directory:
 ```bash
 eas build --platform android
 ```
 
-### Step 4: Install the built executeable directly on your device or an emulator and enjoy!
+### Step 3: Install the built executeable directly on your device or an emulator and enjoy!
 
 ---
 
