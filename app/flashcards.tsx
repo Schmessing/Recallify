@@ -1,8 +1,12 @@
 import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSettings } from '../constants/settingsProvider';
 import { Colors, Spacing } from '../constants/theme';
+// Assuming you have a helper function to get your DB instance, e.g., getDB
+// import { getDB } from '../path/to/your/dbFile'; 
+// If you are using the useSQLiteContext hook, you can use that instead.
+import { useSQLiteContext } from 'expo-sqlite';
 
 type Card = { id: string; question: string; answer: string };
 
@@ -10,18 +14,48 @@ export default function Flashcards() {
   const router = useRouter();
   const { darkMode } = useSettings();
   const theme = darkMode ? Colors.dark : Colors.light;
+  const db = useSQLiteContext(); // Access the database instance
 
-  const [cards] = useState<Card[]>([
-    { id: '1', question: 'What is AI?', answer: 'Artificial Intelligence' },
-    { id: '2', question: 'What does OCR stand for?', answer: 'Optical Character Recognition' },
-    { id: '3', question: 'Define NLP.', answer: 'Natural Language Processing' },
-  ]);
+  const [cards, setCards] = useState<Card[]>([]); // Initialize with an empty array
+
+  // Function to fetch data from the database
+  const fetchFlashcards = async () => {
+    try {
+      // Use the database schema to select question and answer columns
+      // The query below joins 'questions' and 'data' tables to get the question body and answer text.
+      // Adjust the query based on your actual data structure and the table names (e.g., 'flashcard_set_questions', 'false_answers').
+      const result = await db.getAllAsync<any>(`
+        SELECT 
+          q.id as id, 
+          q.body as question, 
+          d.answer as answer 
+        FROM questions q
+        JOIN data d ON q.data_id = d.id
+      `);
+
+      // Map the results to the Card type
+      const fetchedCards: Card[] = result.map((row) => ({
+        id: row.id.toString(), // Ensure ID is a string for keyExtractor
+        question: row.question,
+        answer: row.answer,
+      }));
+
+      setCards(fetchedCards); // Update the state with fetched data
+    } catch (error) {
+      console.error('Error fetching flashcards:', error);
+    }
+  };
+
+  // Fetch data when the component mounts
+  useEffect(() => {
+    fetchFlashcards();
+  }, []);
 
   const animMap = useRef<Record<string, Animated.Value>>({}).current;
   const flipped = useRef<Set<string>>(new Set());
 
   const getAnim = (id: string) => {
-    if (!animMap[id]) animMap[id] = new Animated.Value(0); // 0 = SHOW QUESTION, 1 = SHOW ANSWER
+    if (!animMap[id]) animMap[id] = new Animated.Value(0);
     return animMap[id];
   };
 
@@ -70,7 +104,7 @@ export default function Flashcards() {
             style={[styles.card, { backgroundColor: theme.card }, frontStyle]}
           >
             <Text style={[styles.label, { color: theme.teal }]}>QUESTION</Text>
-            <Text style={[styles.text, { color: theme.text }]}>{item.question}</Text>
+            <Text style={}>{item.question}</Text>
           </Animated.View>
 
           {/* BACK = ANSWER */}
@@ -78,7 +112,7 @@ export default function Flashcards() {
             style={[styles.card, styles.cardBack, { backgroundColor: theme.card }, backStyle]}
           >
             <Text style={[styles.label, { color: theme.teal }]}>ANSWER</Text>
-            <Text style={[styles.text, { color: theme.text }]}>{item.answer}</Text>
+            <Text style={}>{item.answer}</Text>
           </Animated.View>
         </View>
       </TouchableOpacity>
@@ -87,7 +121,7 @@ export default function Flashcards() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Your Flashcards</Text>
+      <Text style={}>Your Flashcards</Text>
       <FlatList
         data={cards}
         renderItem={renderItem}
