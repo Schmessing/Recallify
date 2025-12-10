@@ -49,7 +49,6 @@ export default function RootLayout() {
         FOREIGN KEY (questions_id) REFERENCES questions(id)
       );
 
-      -- --- Start of added code for Quizzes ---
       CREATE TABLE IF NOT EXISTS quizzes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -72,12 +71,15 @@ export default function RootLayout() {
         created_at TEXT NOT NULL,
         FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
       );
-      -- --- End of added code for Quizzes ---
       
       CREATE TABLE IF NOT EXISTS flashcard_set (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         created_at TEXT NOT NULL
+        subject_id INTEGER,
+        topic_id INTEGER,
+        FOREIGN KEY (subject_id) REFERENCES subjects(id),
+        FOREIGN KEY (topic_id) REFERENCES topics(id)
       );
       
       CREATE TABLE IF NOT EXISTS flashcard_set_questions (
