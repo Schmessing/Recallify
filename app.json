@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "recallify",
-    "slug": "recallify",
+    "slug": "recallify3",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,7 +13,6 @@
     },
     "android": {
       "adaptiveIcon": {
-        
         "backgroundColor": "#ffffff"
       },
       "package": "com.recallify.recallify"
@@ -29,8 +28,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "140050ff-0e32-48b5-ae69-5c9b3cf59d35"
+        "projectId": "291e41da-6b6a-4589-9b7e-2d04a87191b6"
       }
-    }
+    },
+    "owner": "recallify2"
   }
 }

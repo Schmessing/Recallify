@@ -48,6 +48,31 @@ export default function RootLayout() {
         answer_level INTEGER,
         FOREIGN KEY (questions_id) REFERENCES questions(id)
       );
+
+      -- --- Start of added code for Quizzes ---
+      CREATE TABLE IF NOT EXISTS quizzes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS quiz_questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        questions_id INTEGER NOT NULL,
+        quiz_id INTEGER NOT NULL,
+        FOREIGN KEY (questions_id) REFERENCES questions(id),
+        FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS completed_quizzes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        quiz_id INTEGER NOT NULL,
+        result TEXT NOT NULL,
+        answers_selected TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+      );
+      -- --- End of added code for Quizzes ---
       
       CREATE TABLE IF NOT EXISTS flashcard_set (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,5 +101,3 @@ export default function RootLayout() {
     </SQLiteProvider>
   );
 }
-
-
