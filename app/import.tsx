@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
 import { useSettings } from '../constants/settingsProvider';
@@ -23,6 +24,8 @@ export default function ImportScreen() {
   const theme = darkMode ? Colors.dark : Colors.light;
 
   const [loading, setLoading] = useState(false);
+  const [subjectName, setSubjectName] = useState(''); 
+  const [topicName, setTopicName] = useState('');
 
   if (!db) {
     return (
@@ -309,7 +312,25 @@ ${text}`;
         // Use a transaction for atomic DB operations
         await db.withTransactionAsync(async () => {
           const createdAt = new Date().toISOString();
-          const topicId = 1; // Assuming a default topic exists
+          // 1a. Find or Insert Subject
+          let subjectRow = await db.getFirstAsync<{ id: number }>(
+            `SELECT id FROM subjects WHERE name = ?`, subjectName
+          );
+          if (!subjectRow) {
+            const res = await db.runAsync(`INSERT INTO subjects (name) VALUES (?)`, subjectName);
+            subjectRow = { id: res.lastInsertRowId };
+          }
+          const subjectId = subjectRow.id;
+
+          // 1b. Find or Insert Topic, linked to the Subject
+          let topicRow = await db.getFirstAsync<{ id: number }>(
+            `SELECT id FROM topics WHERE name = ? AND subject_id = ?`, topicName, subjectId
+          );
+          if (!topicRow) {
+            const res = await db.runAsync(`INSERT INTO topics (name, subject_id) VALUES (?, ?)`, topicName, subjectId);
+            topicRow = { id: res.lastInsertRowId };
+          }
+          const topicId = topicRow.id; 
 
           // 1. Insert the main 'data' record once
           const dataInsertStmt = await db.prepareAsync(
@@ -407,6 +428,40 @@ ${text}`;
       <Text style={{ color: theme.text, opacity: 0.9, marginBottom: Spacing.lg }}>
         Upload your study materials here.
       </Text>
+
+       {/* Subject Input */}
+      <TextInput
+        placeholder="Enter Subject Name (e.g., Biology)"
+        value={subjectName}
+        onChangeText={setSubjectName}
+        style={{
+          borderWidth: 1,
+          borderColor: theme.border,
+          padding: 12,
+          borderRadius: 8,
+          marginBottom: Spacing.md,
+          color: theme.text,
+          backgroundColor: theme.card,
+        }}
+        placeholderTextColor={theme.textSecondary}
+      />
+
+      {/* Topic/Class Input */}
+      <TextInput
+        placeholder="Enter Topic/Class Name (e.g., Cell Structure)"
+        value={topicName}
+        onChangeText={setTopicName}
+        style={{
+          borderWidth: 1,
+          borderColor: theme.border,
+          padding: 12,
+          borderRadius: 8,
+          marginBottom: Spacing.lg, // Add some space before the button
+          color: theme.text,
+          backgroundColor: theme.card,
+        }}
+        placeholderTextColor={theme.textSecondary}
+      />
 
       <TouchableOpacity
         onPress={handleImport}
