@@ -2,14 +2,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File } from 'expo-file-system';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, {
-  createContext, useContext, useEffect,
-  useMemo, useState
-} from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { Colors } from './theme';
 
-// ---------- types ----------
 type ApiUrls = {
   ocrUrl: string; ocrKey: string;
   assemblyAIKey: string;
@@ -29,7 +25,6 @@ type SettingsContextType = {
   clearDB: () => Promise<void>;
 };
 
-// ---------- context ----------
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
 const useSettings = () => {
@@ -38,7 +33,6 @@ const useSettings = () => {
   return ctx;
 };
 
-// ---------- provider ----------
 function SettingsProvider({ children }: { children: React.ReactNode }) {
   const defaultApiUrls: ApiUrls = {
     ocrUrl: 'https://api.ocr.space/parse/image',
@@ -51,14 +45,25 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [language, setLanguage] = useState('en');
-  const [formality, setFormality] = useState<number>(3);
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [formality, setFormality] = useState(3);
+  const [darkMode, setDarkMode] = useState(false);
   const [apiUrls, setApiUrlsState] = useState<ApiUrls>(defaultApiUrls);
   const [dbSize, setDbSize] = useState(0);
 
   const theme = useMemo(() => (darkMode ? Colors.dark : Colors.light), [darkMode]);
-  const setApiUrls = (patch: Partial<ApiUrls>) =>
-    setApiUrlsState(prev => ({ ...prev, ...patch }));
+
+  const setApiUrls = (patch: Partial<ApiUrls>) => {
+    setApiUrlsState(prev => {
+      const updated = { ...prev, ...patch };
+      AsyncStorage.setItem('appSettings', JSON.stringify({
+        language,
+        formality,
+        darkMode,
+        apiUrls: updated
+      })).catch(e => console.warn('Failed to save API keys:', e));
+      return updated;
+    });
+  };
 
   // ---------- load settings ----------
   useEffect(() => {
@@ -70,12 +75,7 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
           setLanguage(s.language ?? 'en');
           setFormality(s.formality ?? 3);
           setDarkMode(s.darkMode ?? false);
-
-          setApiUrlsState(prev => ({
-            ...defaultApiUrls,
-            ...prev,
-            ...(s.apiUrls || {})
-          }));
+          setApiUrlsState(s.apiUrls ?? defaultApiUrls);
         }
       } catch (e) {
         console.warn('Failed to load settings:', e);
@@ -85,12 +85,15 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // ---------- persist settings ----------
+  // ---------- persist general settings on change ----------
   useEffect(() => {
     if (!loadingSettings) {
       AsyncStorage.setItem('appSettings', JSON.stringify({
-        language, formality, darkMode, apiUrls
-      }));
+        language,
+        formality,
+        darkMode,
+        apiUrls
+      })).catch(e => console.warn('Failed to persist settings:', e));
     }
   }, [language, formality, darkMode, apiUrls, loadingSettings]);
 
@@ -98,8 +101,18 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
   const database = useSQLiteContext();
   const dbPath = database.databasePath;
 
-  const dbFile = new File(dbPath);
-  const backupFile = new File(dbPath.replace("app.db", "app_backup.db"));
+  // Only construct File if dbPath is absolute
+  const dbFile = dbPath.startsWith('file://') ? new File(dbPath) : new File(`file://${dbPath}`);
+  const backupFile = new File(dbFile.uri.replace("app.db", "app_backup.db"));
+
+  const refreshDbSize = async () => {
+    try {
+      const info = await dbFile.info();
+      setDbSize(info.exists ? info.size ?? 0 : 0);
+    } catch {
+      setDbSize(0);
+    }
+  };
 
   const saveDB = async () => {
     try {
@@ -107,6 +120,7 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
       if (!info.exists) return Alert.alert("No database found");
       await dbFile.copy(backupFile);
       Alert.alert("Database saved!");
+      refreshDbSize();
     } catch (e) {
       Alert.alert("Failed to save database", String(e));
     }
@@ -118,6 +132,7 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
       if (!info.exists) return Alert.alert("No backup found");
       await backupFile.copy(dbFile);
       Alert.alert("Database restored!");
+      refreshDbSize();
     } catch (e) {
       Alert.alert("Failed to restore database", String(e));
     }
@@ -125,12 +140,19 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const clearDB = async () => {
     try {
+      const info = await dbFile.info();
+      if (!info.exists) return Alert.alert("No database found");
       await dbFile.delete();
       Alert.alert("Database cleared!");
+      refreshDbSize();
     } catch (e) {
       Alert.alert("Failed to clear database", String(e));
     }
   };
+
+  useEffect(() => {
+    refreshDbSize();
+  }, []);
 
   if (loadingSettings) return null;
 
@@ -149,8 +171,6 @@ function SettingsProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-
 export default SettingsProvider;
-
 export { SettingsContext, useSettings };
 

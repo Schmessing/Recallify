@@ -24,7 +24,7 @@ export default function HomeScreen() {
         <Card title="Import Data" body="Upload and process your files." onPress={() => router.push('/import')} />
         <Card title="View Datasets" body="Explore and manage imported datasets." onPress={() => router.push('/viewdb')} />
         <Card title="View Generated Flashcards" body="Study and review your AI-generated flashcards." onPress={() => router.push('/flashcards')} />
-        <Card title="View Generated Quizzes" body="Study with your AI-generated quizzes." onPress={() => router.push('/quiz')} />
+        <Card title="View Generated Quizzes" body="Study with your AI-generated quizzes." onPress={() => router.push('/quizzes')} />
         <Card title="Settings" body="Customize your preferences." onPress={() => router.push('/settings')} />
       </View>
     </ScrollView>
