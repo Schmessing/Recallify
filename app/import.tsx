@@ -271,6 +271,46 @@ ${text}`;
             flashcardSetId,
             qId
           );
+
+          // -----------------------------------------------------------
+          // GENERATE 3 FALSE ANSWERS FOR QUIZZES
+          // -----------------------------------------------------------
+          try {
+            const wrongPrompt = `
+          You are generating multiple-choice distractors.
+          Given the correct answer: "${qa.answer}"
+          Create 3 false but plausible answers. Return ONLY a JSON array:
+          ["wrong1", "wrong2", "wrong3"]
+          `;
+
+            const wrongRes = await genAI.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: [{ parts: [{ text: wrongPrompt }] }],
+            });
+
+            const wrongRaw = wrongRes?.candidates?.[0]?.content?.parts?.[0]?.text ?? "[]";
+
+            let wrongAnswers = [];
+            try {
+              wrongAnswers = JSON.parse(wrongRaw);
+            } catch {
+              wrongAnswers = ["Incorrect A", "Incorrect B", "Incorrect C"];
+            }
+
+            // Insert false answers
+            for (let i = 0; i < wrongAnswers.length; i++) {
+              await db.runAsync(
+                `INSERT INTO false_answers (questions_id, false_answer, answer_level)
+                VALUES (?, ?, ?)`,
+                qId,
+                wrongAnswers[i],
+                i + 1  // answer_level 1,2,3
+              );
+            }
+          } catch (e) {
+            console.error("Error generating false answers:", e);
+          }
+
         }
       });
 

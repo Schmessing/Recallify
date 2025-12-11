@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "recallify",
-    "slug": "recallify",
+    "slug": "app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -28,9 +28,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9f748401-8298-411b-9285-c6c4aa6ce13d"
+        "projectId": "2129da35-a9bc-4aef-b947-c1c0752c9f66"
       }
     },
-    "owner": "ngodunok"
+    "owner": "ivepvs04s-organization"
   }
 }
