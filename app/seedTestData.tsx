@@ -23,10 +23,10 @@ export default async function seedTestData(db: SQLiteDatabase) {
 
       const topicNames = ['Intro', 'Advanced'];
       for (const topicName of topicNames) {
-        await db.runAsync(`INSERT INTO topics (name, subject_id) VALUES (?, ?);`, [
-          topicName,
-          subjectId,
-        ]);
+        await db.runAsync(
+          `INSERT INTO topics (name, subject_id) VALUES (?, ?);`,
+          [topicName, subjectId]
+        );
         const [topicRow] = await db.getAllAsync<{ id: number; name: string }>(
           `SELECT * FROM topics WHERE name = ? AND subject_id = ? ORDER BY id DESC LIMIT 1;`,
           [topicName, subjectId]
@@ -35,6 +35,7 @@ export default async function seedTestData(db: SQLiteDatabase) {
 
         const setTitle = `${subjName} ${topicName} Set`;
         const createdAt = new Date().toISOString();
+
         await db.runAsync(
           `INSERT INTO flashcard_set (title, topic_id, created_at) VALUES (?, ?, ?);`,
           [setTitle, topicId, createdAt]
@@ -46,14 +47,17 @@ export default async function seedTestData(db: SQLiteDatabase) {
         );
         const setId = setRow.id;
 
-        // Insert data
-        await db.runAsync(`INSERT INTO data (topic_id, created_at) VALUES (?, ?);`, [
-          topicId,
-          createdAt,
-        ]);
+        // FIXED — added name for data
+        const dataName = `${subjName} ${topicName} Data`;
+
+        await db.runAsync(
+          `INSERT INTO data (name, topic_id, created_at) VALUES (?, ?, ?);`,
+          [dataName, topicId, createdAt]
+        );
+
         const [dataRow] = await db.getAllAsync<{ id: number }>(
-          `SELECT * FROM data WHERE topic_id = ? ORDER BY id DESC LIMIT 1;`,
-          [topicId]
+          `SELECT * FROM data WHERE name = ? ORDER BY id DESC LIMIT 1;`,
+          [dataName]
         );
         const dataId = dataRow.id;
 

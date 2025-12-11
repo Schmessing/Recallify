@@ -63,6 +63,12 @@ export default function RootLayout() {
         FOREIGN KEY (flashcard_set_id) REFERENCES flashcard_set(id)
       );
     `);
+      try {
+        await db.execAsync(`ALTER TABLE flashcard_set ADD COLUMN topic_id INTEGER;`);
+        console.log("✅ Migrated flashcard_set: topic_id added.");
+      } catch {
+        // Column probably already exists
+      }
     // --- Seed test data ---
     await seedTestData(db);
   };

@@ -1,21 +1,14 @@
 {
+  "cli": {
+    "version": ">= 7.0.0"
+  },
   "build": {
-    "test0": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
-    },
-    "test1": {
-      "android": {
-        "gradleCommand": ":app:assembleRelease"
-      }
-    },
-    "test2": {
-      "developmentClient": true
-    },
-    "test3": {
-      "distribution": "internal"
-    },
-    "production": {}
+    }
   }
 }
