@@ -13,7 +13,6 @@
     },
     "android": {
       "adaptiveIcon": {
-        
         "backgroundColor": "#ffffff"
       },
       "package": "com.recallify.recallify"
@@ -29,8 +28,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "140050ff-0e32-48b5-ae69-5c9b3cf59d35"
+        "projectId": "9f748401-8298-411b-9285-c6c4aa6ce13d"
       }
-    }
+    },
+    "owner": "ngodunok"
   }
 }
