@@ -267,7 +267,8 @@ export default function ImportScreen() {
         const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
 
         // Request multiple Q/A pairs in JSON format for easier parsing and iteration.
-        const prompt = `From the following content, generate exactly five questions and their corresponding answers. Return the result as a JSON array of objects, where each object has 'question' and 'answer' keys.
+        // Prompt modification: Ask for question, correct answer, and a set of false answers.
+        const prompt = `From the following content, generate exactly five questions. For each question, provide the single correct answer based *solely* on the content, and three *plausible but false* answers that are not found in the content. Return the result as a JSON array of objects, where each object has 'question', 'correct_answer', and 'false_answers' (an array of strings) keys.
         
         CRITICAL RULE: The questions and answers MUST be based solely on the factual information present in the CONTENT section below. DO NOT ask about the file format, the extraction process, or the base64 encoding. If the content is empty, return an empty JSON array [].
 
@@ -275,8 +276,8 @@ export default function ImportScreen() {
 
 Example format:
 [
-  {"question": "Q1", "answer": "A1"},
-  {"question": "Q2", "answer": "A2"}
+  {"question": "Q1", "correct_answer": "A1", "false_answers": ["F1a", "F1b", "F1c"]},
+  {"question": "Q2", "correct_answer": "A2", "false_answers": ["F2a", "F2b", "F2c"]}
 ]
 
 Content:
@@ -296,14 +297,18 @@ ${text}`;
         try {
           // Parse the generated JSON string into an array of objects
           qaPairs = JSON.parse(generatedText);
-          if (!Array.isArray(qaPairs) || qaPairs.length === 0) {
-            throw new Error("Parsed JSON is not a valid, non-empty array.");
+          // Check if every object in the array has the expected keys for the new structure
+          const isValidArray = Array.isArray(qaPairs) && qaPairs.length > 0 && 
+            qaPairs.every(item => 'question' in item && 'correct_answer' in item && Array.isArray(item.false_answers));
+          
+          if (!isValidArray) {
+            throw new Error("Parsed JSON is not a valid, non-empty array with expected keys.");
           }
         } catch (error) {
           console.error("Failed to parse generated Q&A JSON:", error);
           Alert.alert("Error", "Failed to parse AI response. Using a default single entry.");
-          // Fallback if parsing fails, use a default single pair
-          qaPairs = [{ question: "Generation failed to parse", answer: "Check console logs" }];
+          // Fallback if parsing fails, use a default single pair with new structure
+          qaPairs = [{ question: "Generation failed to parse", correct_answer: "Check console logs", false_answers: ["err1", "err2", "err3"] }];
         }
 
         // Use a transaction for atomic DB operations
@@ -354,12 +359,13 @@ ${text}`;
           // 3. Iterate over the Q/A pairs to insert into 'questions' and link them
           for (const pair of qaPairs) {
             // Insert question into 'questions' table
+            // We now insert the correct answer into the `answer` column.
             const questionInsertRes = await db.runAsync(
               `INSERT INTO questions (data_id, question, answer) 
                VALUES (?, ?, ?)`,
               dataId,
               pair.question || "Generated question",
-              pair.answer || "Generated answer"
+              pair.correct_answer || "Generated answer" // Use correct_answer here
             );
 
             const questionId = questionInsertRes.lastInsertRowId;
@@ -377,16 +383,26 @@ ${text}`;
               questionId,
               quizId
             );
-            // console.log(`Question ID ${questionId} linked to set ${flashcardSetId} and quiz ${quizId}`);
+
+            // 4.Insert false answers into a new `quiz_false_answers` table
+            for (const falseAns of pair.false_answers) {
+              await db.runAsync(
+                `INSERT INTO false_answers (questions_id, false_answer) VALUES (?, ?)`,
+                questionId,
+                falseAns
+              );
+            }
+            // console.log(`Question ID ${questionId} linked to set ${flashcardSetId} and quiz ${quizId}, including false answers`);
           }
           
-          console.log(`${qaPairs.length} Q&A pairs, Flashcard set, and Quiz saved to database successfully!`);
+          console.log(`${qaPairs.length} Q&A pairs, Flashcard set, Quiz, and false answers saved to database successfully!`);
         }); // End of transaction
       } 
       catch (err) {
         console.error("Gemini Q&A/DB save failed:", err);
         Alert.alert("Error generating or saving content", String(err));
       }
+
     } 
     catch (err) {
       console.error("Import failed:", err);
