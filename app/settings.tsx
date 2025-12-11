@@ -69,10 +69,8 @@ export default function SettingsScreen() {
         <View key={key} style={{ marginBottom: Spacing.sm }}>
           <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
           <TextInput
-            value={apiUrls[key]}
-            onChangeText={(v) =>
-              setApiUrls(prev => ({ ...prev, [key]: v } as ApiUrls))
-            }
+            value={apiUrls[key] ?? ''}
+            onChangeText={(v) => setApiUrls({ [key]: v })}
             autoCapitalize="none"
             style={[styles.input, { borderColor: theme.teal, color: theme.text }]}
             placeholder={label}

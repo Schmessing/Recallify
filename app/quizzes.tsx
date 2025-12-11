@@ -81,7 +81,7 @@ export default function QuizzesScreen() {
     setError(null);
     try {
       const rows = await db.getAllAsync<Quiz>(
-        `SELECT id, title, created_at FROM quizzes ORDER BY created_at DESC`
+        `SELECT id, title, created_at FROM flashcard_set ORDER BY created_at DESC`
       );
       setQuizzes(rows);
     } catch (err: any) {
@@ -100,9 +100,9 @@ export default function QuizzesScreen() {
       const rows = await db.getAllAsync<Question>(
         `
         SELECT q.id, q.question, q.answer
-        FROM quiz_questions qq
-        JOIN questions q ON q.id = qq.questions_id
-        WHERE qq.quiz_id = ?
+        FROM flashcard_set_questions fq
+        JOIN questions q ON q.id = fq.question_id
+        WHERE fq.flashcard_set_id = ?
         ORDER BY q.id ASC
       `,
         [quizId]

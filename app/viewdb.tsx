@@ -11,20 +11,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors } from '../constants/theme';
-
 import { useSettings } from '../constants/settingsProvider';
 
 type Subject = { id: number; name: string };
 type Topic = { id: number; name: string; subject_id: number };
 type FlashcardSet = { id: number; title: string; topic_id: number };
-type Question = { id: number; question: string; answer: string; data_id: number };
+type Question = { id: string | number; question: string; answer: string; data_id: number };
 
 const DBEditor = () => {
   const db = useSQLiteContext();
   const router = useRouter();
-  const { darkMode } = useSettings();
-  const theme = darkMode ? Colors.dark : Colors.light;
+  const { theme } = useSettings(); // <- Use theme from settingsProvider
 
   // Navigation state
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -39,7 +36,7 @@ const DBEditor = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch helpers
+  // ---------- Fetch helpers ----------
   const fetchSubjects = async () => {
     setLoading(true);
     try {
@@ -109,7 +106,7 @@ const DBEditor = () => {
     fetchSubjects();
   }, []);
 
-  // Update helper
+  // ---------- Update helper ----------
   const updateField = async (
     table: string,
     idField: string,
@@ -129,7 +126,7 @@ const DBEditor = () => {
     }
   };
 
-  // Editable item component
+  // ---------- Editable item component ----------
   const EditableItem = ({
     value,
     onSave,
@@ -143,11 +140,11 @@ const DBEditor = () => {
     const [text, setText] = useState(value);
 
     return (
-      <View style={styles.item}>
+      <View style={[styles.item, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {editing ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' }}>
             <TextInput
-              style={[styles.input, { flex: 1 }]}
+              style={[styles.input, { flex: 1, backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
               value={text}
               onChangeText={setText}
               autoFocus
@@ -167,7 +164,7 @@ const DBEditor = () => {
             onPress={() => setEditing(true)}
             style={{ flexWrap: 'wrap', flexDirection: 'row', alignItems: 'center' }}
           >
-            <Text style={styles.nameText}>{text}</Text>
+            <Text style={[styles.nameText, { color: theme.text }]}>{text}</Text>
             {children}
           </TouchableOpacity>
         )}
@@ -177,30 +174,32 @@ const DBEditor = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.teal} />
-        <Text>Loading...</Text>
+        <Text style={{ color: theme.text }}>Loading...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
         <Text style={{ color: 'red' }}>{error}</Text>
       </View>
     );
   }
 
-  // Render layers
+  // ---------- Render navigation layers ----------
+  const listContainerStyle = { paddingBottom: 20, backgroundColor: theme.background };
+
   // 1. Subjects
   if (!selectedSubject)
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <FlatList
           data={subjects}
           keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={<Text style={[styles.title, { paddingTop: 20 }]}>Subjects</Text>}
+          ListHeaderComponent={<Text style={[styles.title, { paddingTop: 20, color: theme.text }]}>Subjects</Text>}
           renderItem={({ item }) => (
             <EditableItem
               value={item.name}
@@ -217,28 +216,25 @@ const DBEditor = () => {
               </TouchableOpacity>
             </EditableItem>
           )}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={listContainerStyle}
         />
-                <TouchableOpacity
-                  style={[styles.backButton, { backgroundColor: theme.teal }]}
-                  onPress={() => router.push('/home')}>
-                  <Text style={styles.backText}>Back</Text>
-                </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: theme.teal }]}
+          onPress={() => router.push('/home')}
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
 
   // 2. Topics
   if (selectedSubject && !selectedTopic)
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <FlatList
           data={topics}
           keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={
-            <Text style={[styles.title, { paddingTop: 20 }]}>
-              {selectedSubject.name} — Topics
-            </Text>
-          }
+          ListHeaderComponent={<Text style={[styles.title, { paddingTop: 20, color: theme.text }]}>{selectedSubject.name} — Topics</Text>}
           renderItem={({ item }) => (
             <EditableItem
               value={item.name}
@@ -255,7 +251,7 @@ const DBEditor = () => {
               </TouchableOpacity>
             </EditableItem>
           )}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={listContainerStyle}
         />
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: theme.teal }]}
@@ -269,15 +265,11 @@ const DBEditor = () => {
   // 3. Flashcard Sets
   if (selectedTopic && !selectedSet)
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <FlatList
           data={sets}
           keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={
-            <Text style={[styles.title, { paddingTop: 20 }]}>
-              {selectedTopic.name} — Sets
-            </Text>
-          }
+          ListHeaderComponent={<Text style={[styles.title, { paddingTop: 20, color: theme.text }]}>{selectedTopic.name} — Sets</Text>}
           renderItem={({ item }) => (
             <EditableItem
               value={item.title}
@@ -294,7 +286,7 @@ const DBEditor = () => {
               </TouchableOpacity>
             </EditableItem>
           )}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={listContainerStyle}
         />
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: theme.teal }]}
@@ -307,13 +299,11 @@ const DBEditor = () => {
 
   // 4. Questions
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <FlatList
         data={questions}
         keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={
-          <Text style={[styles.title, { paddingTop: 20 }]}>{selectedSet?.title} — Questions</Text>
-        }
+        ListHeaderComponent={<Text style={[styles.title, { paddingTop: 20, color: theme.text }]}>{selectedSet?.title} — Questions</Text>}
         renderItem={({ item }) => (
           <View style={styles.questionItem}>
             <EditableItem
@@ -326,7 +316,7 @@ const DBEditor = () => {
             />
           </View>
         )}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={listContainerStyle}
       />
       <TouchableOpacity
         style={[styles.backButton, { backgroundColor: theme.teal }]}
@@ -339,26 +329,23 @@ const DBEditor = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  container: { flex: 1, padding: 20 },
   center: { justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: '#333' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
   item: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    backgroundColor: '#f9f9f9',
     borderRadius: 8,
     marginBottom: 5,
     flexWrap: 'wrap',
+    borderWidth: 1,
   },
   nameText: { fontSize: 16, fontWeight: '600', flexWrap: 'wrap', flexShrink: 1 },
   input: {
     borderWidth: 1,
-    borderColor: '#aaa',
     padding: 8,
     borderRadius: 6,
     minWidth: 100,
-    backgroundColor: '#fff',
   },
   saveButton: {
     marginLeft: 8,
