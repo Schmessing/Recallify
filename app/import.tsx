@@ -53,9 +53,31 @@ export default function ImportScreen() {
     return global.btoa(binary);
   };
 
-  // -----------------------------------------------------------
+  // --------------------------------------------------------------------
+  // 🔧 NEW: JSON CLEANING HELPER (SOLVES ALL PARSE ERRORS)
+  // --------------------------------------------------------------------
+  const extractJson = (raw: string) => {
+    if (!raw) return "[]";
+
+    let cleaned = raw
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+
+    // Find array boundaries
+    const start = cleaned.indexOf("[");
+    const end = cleaned.lastIndexOf("]");
+
+    if (start === -1 || end === -1) {
+      return "[]";
+    }
+
+    return cleaned.slice(start, end + 1);
+  };
+
+  // --------------------------------------------------------------------
   // SHOW INPUT POPUP BEFORE IMPORTING
-  // -----------------------------------------------------------
+  // --------------------------------------------------------------------
   const startImport = () => {
     setSubject("");
     setTopic("");
@@ -72,9 +94,9 @@ export default function ImportScreen() {
     handleImport();
   };
 
-  // -----------------------------------------------------------
+  // --------------------------------------------------------------------
   // MAIN IMPORT LOGIC
-  // -----------------------------------------------------------
+  // --------------------------------------------------------------------
   const handleImport = async () => {
     setLoading(true);
 
@@ -95,7 +117,7 @@ export default function ImportScreen() {
       let text = "";
       const mime = asset.mimeType;
 
-      // -------- TEXT FILES --------
+      // -------- TEXT --------
       if (mime === "text/plain") {
         text = file.textSync();
       }
@@ -116,7 +138,7 @@ export default function ImportScreen() {
         text = output?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       }
 
-      // -------- IMAGES → OCR --------
+      // -------- IMAGE → OCR --------
       else if (mime.startsWith("image/")) {
         const arrayBuffer = await file.arrayBuffer();
         const base64 = arrayBufferToBase64(arrayBuffer);
@@ -126,14 +148,12 @@ export default function ImportScreen() {
 
         const output = await genAI.models.generateContent({
           model: "gemini-2.5-flash",
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                { inlineData: { data: base64, mimeType: mime } }
-              ]
-            }
-          ],
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inlineData: { data: base64, mimeType: mime } }
+            ]
+          }],
         });
 
         text = output?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
@@ -181,9 +201,11 @@ export default function ImportScreen() {
         text = finalText;
       }
 
-      // -------- GENERATE Q&A --------
+      // --------------------------------------------------------------------
+      // 🔥 GENERATE Q&A (JSON PARSED SAFELY)
+      // --------------------------------------------------------------------
       const genAI = new GoogleGenAI({ apiKey: apiUrls.geminiKey });
-      const qaPrompt = `From this content, generate 5 Q&A pairs. Return only JSON array of:
+      const qaPrompt = `From this content, generate 5 Q&A pairs. Return only JSON array:
 [
   { "question": "...", "answer": "..." }
 ]
@@ -199,14 +221,14 @@ ${text}`;
       let qaPairs = [];
 
       try {
-        qaPairs = JSON.parse(rawJson);
+        qaPairs = JSON.parse(extractJson(rawJson)); // FIXED
       } catch {
         qaPairs = [{ question: "Parse error", answer: "Check JSON" }];
       }
 
-      // -----------------------------------------------------------
-      // SAVE INTO DATABASE USING USER PROVIDED SUBJECT / TOPIC / SET
-      // -----------------------------------------------------------
+      // --------------------------------------------------------------------
+      // SAVE INTO DATABASE
+      // --------------------------------------------------------------------
       await db.withTransactionAsync(async () => {
         const createdAt = new Date().toISOString();
 
@@ -244,7 +266,7 @@ ${text}`;
         );
         const flashcardSetId = setRow.id;
 
-        // Insert data entry
+        // Insert data
         const dataRes = await db.runAsync(
           `INSERT INTO data (name, size, body, topic_id, created_at) VALUES (?, ?, ?, ?, ?)`,
           asset.name,
@@ -255,7 +277,7 @@ ${text}`;
         );
         const dataId = dataRes.lastInsertRowId;
 
-        // Insert questions + link to flashcards
+        // Insert Q's
         for (const qa of qaPairs) {
           const qRes = await db.runAsync(
             `INSERT INTO questions (data_id, question, answer) VALUES (?, ?, ?)`,
@@ -271,6 +293,44 @@ ${text}`;
             flashcardSetId,
             qId
           );
+
+          // --------------------------------------------------------------------
+          // FALSE ANSWERS (also JSON cleaned)
+          // --------------------------------------------------------------------
+          try {
+            const wrongPrompt = `
+          You are generating multiple-choice distractors.
+          Given the correct answer: "${qa.answer}"
+          Create 3 false but plausible answers. Return ONLY:
+          ["a","b","c"]
+          `;
+
+            const wrongRes = await genAI.models.generateContent({
+              model: "gemini-2.5-flash",
+              contents: [{ parts: [{ text: wrongPrompt }] }],
+            });
+
+            const wrongRaw = wrongRes?.candidates?.[0]?.content?.parts?.[0]?.text ?? "[]";
+            let wrongAnswers = [];
+
+            try {
+              wrongAnswers = JSON.parse(extractJson(wrongRaw)); // FIXED
+            } catch {
+              wrongAnswers = ["Incorrect A", "Incorrect B", "Incorrect C"];
+            }
+
+            for (let i = 0; i < wrongAnswers.length; i++) {
+              await db.runAsync(
+                `INSERT INTO false_answers (questions_id, false_answer, answer_level)
+                 VALUES (?, ?, ?)`,
+                qId,
+                wrongAnswers[i],
+                i + 1
+              );
+            }
+          } catch (e) {
+            console.error("Error generating false answers:", e);
+          }
         }
       });
 
@@ -287,9 +347,9 @@ ${text}`;
     }
   };
 
-  // -----------------------------------------------------------
+  // --------------------------------------------------------------------
   // UI
-  // -----------------------------------------------------------
+  // --------------------------------------------------------------------
   return (
     <View style={{ flex: 1, padding: Spacing.lg, backgroundColor: theme.background }}>
       <Text style={{ fontSize: 26, fontWeight: "800", color: theme.text, marginBottom: Spacing.md }}>
